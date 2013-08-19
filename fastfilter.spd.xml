@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+This file is protected by Copyright. Please refer to the COPYRIGHT file distributed with this 
+source distribution.
+      
+This file is part of REDHAWK Basic Components fastfilter.
+
+REDHAWK Basic Components fastfilter is free software: you can redistribute it and/or modify it under the terms of 
+the GNU General Public License as published by the Free Software Foundation, either 
+version 3 of the License, or (at your option) any later version.
+
+REDHAWK Basic Components fastfilter is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this 
+program.  If not, see http://www.gnu.org/licenses/.
+-->
+<!DOCTYPE softpkg PUBLIC "-//JTRS//DTD SCA V2.2.2 SPD//EN" "softpkg.dtd">
+<softpkg id="DCE:42d3f184-ca0e-471c-bf66-0144443bb4c0" name="fastfilter" type="sca_compliant">
+  <title></title>
+  <author>
+    <name>null</name>
+  </author>
+  <propertyfile type="PRF">
+    <localfile name="fastfilter.prf.xml"/>
+  </propertyfile>
+  <descriptor>
+    <localfile name="fastfilter.scd.xml"/>
+  </descriptor>
+  <implementation id="cpp">
+    <description>The implementation contains descriptive information about the template for a software component.</description>
+    <code type="Executable">
+      <localfile name="cpp/fastfilter"/>
+      <entrypoint>cpp/fastfilter</entrypoint>
+    </code>
+    <compiler name="/usr/bin/gcc" version="4.1.2"/>
+    <programminglanguage name="C++"/>
+    <humanlanguage name="EN"/>
+    <os name="Linux"/>
+    <dependency type="runtime_requirements">
+      <softpkgref>
+        <localfile name="/components/fftlib/fftlib.spd.xml"/>
+        <implref refid="firstImplementation"/>
+      </softpkgref>
+    </dependency>
+    <dependency type="runtime_requirements">
+      <softpkgref>
+        <localfile name="/components/dsp/dsp.spd.xml"/>
+        <implref refid="firstImplementation"/>
+      </softpkgref>
+    </dependency>
+    <processor name="x86"/>
+    <processor name="x86_64"/>
+  </implementation>
+</softpkg>

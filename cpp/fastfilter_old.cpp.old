@@ -1,0 +1,132 @@
+
+/**************************************************************************
+
+    This is the component code. This file contains the child class where
+    custom functionality can be added to the component. Custom
+    functionality to the base class can be extended here. Access to
+    the ports can also be done from this class
+
+ 	Source: fastfilter.spd.xml
+ 	Generated on: Mon Jul 22 09:49:08 EDT 2013
+ 	REDHAWK IDE
+ 	Version: 1.8.4
+ 	Build id: R201305151907
+
+**************************************************************************/
+
+// Inserted by update_project
+#include <bulkio/bulkio_compat.h>
+#include "fastfilter.h"
+
+PREPARE_LOGGING(fastfilter_i)
+
+fastfilter_i::fastfilter_i(const char *uuid, const char *label) : 
+    fastfilter_base(uuid, label),
+    filter_(fftSize, realIn, complexIn, realOut, complexOut)
+{
+	setPropertyChangeListener("fftSize", this, &fastfilter_i::fftSizeChanged);
+	setPropertyChangeListener("filterComplex", this, &fastfilter_i::filterChanged);
+	setPropertyChangeListener("filterCoeficients", this, &fastfilter_i::filterChanged);
+}
+
+fastfilter_i::~fastfilter_i()
+{
+}
+        
+int fastfilter_i::serviceFunction()
+{
+    BULKIO_dataFloat_In_i::dataTransfer *tmp = dataFloat_in->getPacket(-1);
+    if (not tmp) { // No data is available
+        return NOOP;
+    }
+    bool forceSriPush = false;
+    if (tmp->SRI.mode==1)
+    {
+    	//unpack the data into a complex vector
+    	complexIn.resize(tmp->dataBuffer.size()/2);
+    	for (size_t i=0; i!= complexIn.size(); i++)
+    	{
+    		complexIn[i].real(tmp->dataBuffer[2*i]);
+    		complexIn[i].imag(tmp->dataBuffer[2*i+1]);
+    	}
+    	//run the filter
+    	filter_.newComplexData();
+    	//demux the complex vector to our real output vector
+    	cxOutputToReal();
+    }
+    else
+    {
+    	//asign the new vector becaus of the allocator issue - it is just easier to copy the data
+    	realIn.assign(tmp->dataBuffer.begin(), tmp->dataBuffer.end());
+    	//filter the data
+    	filter_.newRealData();
+    	//we might have a single complex frame if the previous data was complex and there were
+    	//complex data still in the filter taps
+    	if (!complexOut.empty())
+    	{
+    		tmp->SRI.mode=1;
+    		cxOutputToReal();
+    		forceSriPush = true;
+    	}
+    }
+
+	//to do -- adjust time stamps appropriately on all these output pushes
+    // NOTE: You must make at least one valid pushSRI call
+    if (tmp->sriChanged || forceSriPush) {
+    	dataFloat_out->pushSRI(tmp->SRI);
+    }
+    if (!complexOutAsReal.empty())
+    {
+    	dataFloat_out->pushPacket(complexOutAsReal, tmp->T, tmp->EOS, tmp->streamID);
+    	complexOutAsReal.clear();
+    }
+    if (!realOut.empty())
+    {
+    	if (forceSriPush)
+    	{
+    		//change mode back to 0 and send another sri
+    		tmp->SRI.mode=0;
+    		dataFloat_out->pushSRI(tmp->SRI);
+    	}
+    	dataFloat_out->pushPacket(realOut, tmp->T, tmp->EOS, tmp->streamID);
+    	realOut.clear();
+    }
+    delete tmp; // IMPORTANT: MUST RELEASE THE RECEIVED DATA BLOCK
+    return NORMAL;
+}
+
+void fastfilter_i::cxOutputToReal()
+{
+	complexOutAsReal.resize(complexOut.size()*2);
+	for (size_t i=0; i!= complexOut.size(); i++)
+	{
+		complexOutAsReal[2*i] = complexOut[i].real();
+		complexOutAsReal[2*i+1] = complexOut[i].imag();
+	}
+	complexOut.clear();
+}
+
+void fastfilter_i::fftSizeChanged(const std::string& id)
+{
+	filter_.setFftSize(fftSize);
+}
+
+void fastfilter_i::filterChanged(const std::string& id)
+{
+    if (filterComplex)
+    {
+    	ComplexFFTWVector taps(filterCoeficients.size()/2);
+    	for (size_t i =0; i!=taps.size(); i++)
+    	{
+    		taps[i].real(filterCoeficients[2*i]);
+    		taps[i].imag(filterCoeficients[2*i+1]);
+    	}
+    	filter_.setTaps(taps);
+    }
+    else
+    {
+    	RealFFTWVector taps(filterCoeficients.size());
+    	copy(filterCoeficients.begin(), filterCoeficients.end(), taps.begin());
+    	filter_.setTaps(taps);
+    }
+}

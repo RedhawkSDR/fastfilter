@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="ASCII"?>
+<!--
+This file is protected by Copyright. Please refer to the COPYRIGHT file distributed with this 
+source distribution.
+      
+This file is part of REDHAWK Basic Components fastfilter.
+
+REDHAWK Basic Components fastfilter is free software: you can redistribute it and/or modify it under the terms of 
+the GNU General Public License as published by the Free Software Foundation, either 
+version 3 of the License, or (at your option) any later version.
+
+REDHAWK Basic Components fastfilter is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this 
+program.  If not, see http://www.gnu.org/licenses/.
+-->
+<codegen:WaveDevSettings xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:codegen="http://www.redhawk.gov/model/codegen">
+  <implSettings key="cpp">
+    <value outputDir="cpp" template="gov.redhawk.ide.codegen.jet.cplusplus.PullPortDataTemplate" generatorId="gov.redhawk.ide.codegen.jet.cplusplus.CplusplusGenerator" primary="true">
+      <generatedFileCRCs crc="1746641546" file="reconf"/>
+      <generatedFileCRCs crc="301955685" file="fastfilter_base.h"/>
+      <generatedFileCRCs crc="2178711148" file="port_impl.cpp"/>
+      <generatedFileCRCs crc="3297667125" file="../fastfilter.spec"/>
+      <generatedFileCRCs crc="2947779725" file="fastfilter.h"/>
+      <generatedFileCRCs crc="1942573142" file="struct_props.h"/>
+      <generatedFileCRCs crc="1958497001" file="fastfilter.cpp"/>
+      <generatedFileCRCs crc="2611116461" file="fastfilter_base.cpp"/>
+      <generatedFileCRCs crc="2853221533" file="port_impl.h"/>
+      <generatedFileCRCs crc="1946993334" file="configure.ac"/>
+      <generatedFileCRCs crc="864280150" file="build.sh"/>
+      <generatedFileCRCs crc="4101117823" file="main.cpp"/>
+      <generatedFileCRCs crc="303118576" file="Makefile.am"/>
+    </value>
+  </implSettings>
+</codegen:WaveDevSettings>
