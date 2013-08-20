@@ -259,8 +259,7 @@ void fastfilter_i::filterChanged(const std::string& id)
     	ComplexFFTWVector taps(filterCoeficients.size()/2);
     	for (size_t i =0; i!=taps.size(); i++)
     	{
-    		taps[i].real(filterCoeficients[2*i]);
-    		taps[i].imag(filterCoeficients[2*i+1]);
+    		taps[i] = std::complex<float>(filterCoeficients[2*i], filterCoeficients[2*i+1]);
     	}
     	filter_.setTaps(taps);
     }
