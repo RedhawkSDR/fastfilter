@@ -188,8 +188,7 @@ int fastfilter_i::serviceFunction()
     	complexIn.resize(tmp->dataBuffer.size()/2);
     	for (size_t i=0; i!= complexIn.size(); i++)
     	{
-    		complexIn[i].real(tmp->dataBuffer[2*i]);
-    		complexIn[i].imag(tmp->dataBuffer[2*i+1]);
+    		complexIn[i] = std::complex<float>(tmp->dataBuffer[2*i], tmp->dataBuffer[2*i+1]);
     	}
     	//run the filter
     	filter_.newComplexData();
