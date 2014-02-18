@@ -18,7 +18,7 @@ program.  If not, see http://www.gnu.org/licenses/.
 -->
 <codegen:WaveDevSettings xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:codegen="http://www.redhawk.gov/model/codegen">
   <implSettings key="cpp">
-    <value outputDir="cpp" template="gov.redhawk.ide.codegen.jet.cplusplus.PullPortDataTemplate" generatorId="gov.redhawk.ide.codegen.jet.cplusplus.CplusplusGenerator" primary="true">
+    <value outputDir="cpp" template="redhawk.codegen.jinja.cpp.component.pull" generatorId="gov.redhawk.ide.codegen.jinja.cplusplus.CplusplusGenerator" primary="true">
       <generatedFileCRCs crc="1746641546" file="reconf"/>
       <generatedFileCRCs crc="301955685" file="fastfilter_base.h"/>
       <generatedFileCRCs crc="2178711148" file="port_impl.cpp"/>

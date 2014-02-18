@@ -23,6 +23,7 @@
 #include <ossie/Resource_impl.h>
 
 #include "bulkio/bulkio.h"
+#include "struct_props.h"
 
 #define NOOP 0
 #define FINISH -1
@@ -123,6 +124,7 @@ class fastfilter_base : public Resource_impl
         CORBA::ULong fftSize;
         bool filterComplex;
         std::vector<float> filterCoeficients;
+        filterProps_struct filterProps;
 
         // Ports
         bulkio::InFloatPort *dataFloat_in;
