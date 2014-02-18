@@ -161,4 +161,13 @@ void fastfilter_base::loadProperties()
                 "external",
                 "configure");
 
+    addProperty(filterProps,
+                filterProps_struct(),
+                "filterProps",
+                "",
+                "readwrite",
+                "",
+                "external",
+                "configure");
+
 }

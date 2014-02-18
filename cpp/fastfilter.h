@@ -3,6 +3,7 @@
 
 #include "fastfilter_base.h"
 #include "firfilter.h"
+#include "FirFilterDesigner.h"
 
 class fastfilter_i;
 
@@ -28,7 +29,11 @@ class fastfilter_i : public fastfilter_base
         void cxOutputToReal();
         void fftSizeChanged(const std::string& id);
         void filterChanged(const std::string& id);
-
+        void filterCoeficientsChanged(const std::string& id);
+        void filterPropsChanged(const std::string& id);
+        FirFilterDesigner filterdesigner_;
+        float fs_;
+        bool manualTaps_;
 };
 
 #endif
