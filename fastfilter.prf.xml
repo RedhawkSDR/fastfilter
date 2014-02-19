@@ -35,43 +35,4 @@ program.  If not, see http://www.gnu.org/licenses/.
     <kind kindtype="configure"/>
     <action type="external"/>
   </simple>
-  <struct id="filterProps" mode="readwrite">
-    <simple id="TransitionWidth" mode="readwrite" type="double">
-      <description>Desired transition region width</description>
-      <value>800</value>
-      <units>Hz</units>
-      <kind kindtype="configure"/>
-      <action type="external"/>
-    </simple>
-    <simple id="Type" mode="readwrite" type="string">
-      <description>Type of filter to design</description>
-      <enumerations>
-        <enumeration label="lowpass" value="lowpass"/>
-        <enumeration label="highpass" value="highpass"/>
-        <enumeration label="bandpass" value="bandpass"/>
-        <enumeration label="bandstop" value="bandstop"/>
-      </enumerations>
-      <kind kindtype="configure"/>
-      <action type="external"/>
-    </simple>
-    <simple id="Ripple" mode="readwrite" type="double">
-      <description>Maximum bound on error in pass/stop bands</description>
-      <value>0.01</value>
-      <range max="1" min="0"/>
-      <kind kindtype="configure"/>
-      <action type="external"/>
-    </simple>
-    <simple id="freq1" mode="readwrite" type="double">
-      <description>First transition frequency - used for all frequncy types</description>
-      <value>1000</value>
-      <kind kindtype="configure"/>
-      <action type="external"/>
-    </simple>
-    <simple id="freq2" mode="readwrite" type="double">
-      <description>Second transition Frquency -- used only for bandpass/bandstop filters</description>
-      <value>2000</value>
-      <kind kindtype="configure"/>
-      <action type="external"/>
-    </simple>
-  </struct>
 </properties>

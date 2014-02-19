@@ -21,25 +21,9 @@ import unittest
 import ossie.utils.testing
 import os
 from omniORB import any
-from ossie.cf import CF
-from omniORB import CORBA
 from ossie.utils import sb
 import time
 import math
-import matplotlib.pyplot
-import scipy.fftpack
-
-
-DISPLAY = False
-
-def plotFft(sig, fftSize=None, sampleRate=1.0):
-    if fftSize==None:
-        fftSize = len(sig)
-    fIn = scipy.fftpack.fftshift(scipy.fftpack.fft(sig[:fftSize],fftSize))
-    freqsIn = scipy.fftpack.fftshift(scipy.fftpack.fftfreq(fftSize,1.0/sampleRate))
-    matplotlib.pyplot.plot(freqsIn, [abs(x) for x in fIn])
-    #matplotlib.pyplot.plot(freqs, testOut)
-    matplotlib.pyplot.show()
 
 def toClipboard(data):
     import pygtk
@@ -253,154 +237,14 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.assertTrue(all([abs(x)<.01 for x in im]))
         self.assertTrue(all([abs(x-y)<.1 for x,y in zip(reSS,inData[0])]))
 
-    def doImpulseResponse(self, sampleRate=1.0):
-        print "self.comp.filterComplex", self.comp.filterComplex
-        data = [0]*self.comp.fftSize
-        data[0]=1
-        print "input data len = ", len(data)
-        self.main([data],False,sampleRate)
-
-        filtLen = len(self.comp.filterCoeficients)        
-        if self.comp.filterComplex:
-            filtLen/=2
-            coefs = toCx(self.comp.filterCoeficients)
-        else:
-            coefs = list(self.comp.filterCoeficients)
-
-        print "output len = ", len(self.output)
-        print "coefs = ", len(coefs)
-        #print coefs
-        #print self.output[:filtLen]
-        print "filtLen = ", filtLen
-
-        print "self.comp.filterCoeficients = ", self.comp.filterCoeficients
-
-        self.cmpList(coefs, self.output[:filtLen])
-        self.cmpList(self.output[filtLen:], 0)
-        #self.assertTrue(self.output[:filtLen]==coefs)
-        #self.assertTrue(all([x==0 for x in self.output[filtLen:]]))
-
-    def cmpList(self,a,b):
-        if isinstance(b, list):
-            self.assertTrue(len(a)==len(b))
-            self.assertTrue(all([abs(x-y)<.01 for x, y in zip(a,b)]))
-        else:
-            self.assertTrue(all([abs(x-b)<.01 for x in a]))
     
-    def setFilterProps(self, tw=400, filterType='lowpass', ripple=0.01, freq1=1000.0, freq2=2000.0):
-        prop = ossie.cf.CF.DataType(id='filterProps', value=CORBA.Any(CORBA.TypeCode("IDL:CF/Properties:1.0"), [ossie.cf.CF.DataType(id='TransitionWidth', value=CORBA.Any(CORBA.TC_double, tw)), 
-                                                                                                                ossie.cf.CF.DataType(id='Type', value=CORBA.Any(CORBA.TC_string, filterType)), 
-                                                                                                                ossie.cf.CF.DataType(id='Ripple', value=CORBA.Any(CORBA.TC_double, ripple)), 
-                                                                                                                ossie.cf.CF.DataType(id='freq1', value=CORBA.Any(CORBA.TC_double, freq1)), 
-                                                                                                                ossie.cf.CF.DataType(id='freq2', value=CORBA.Any(CORBA.TC_double, freq2))]))
-        self.comp.configure([prop])
-
-        
-    def testLowpass(self):
-        filterType = 'lowpass'
-        self.setFilterProps(filterType=filterType)
-        fs = 10000
-        self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
-        if DISPLAY:
-            plotFft(self.output, 1024, fs)
-
-    def testHighPass(self):
-        filterType = 'highpass'
-        self.setFilterProps(filterType=filterType)
-        fs = 10000
-        self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
-        if DISPLAY:
-            plotFft(self.comp.filterCoeficients, 1024, fs)
-
-    def testBandPass(self):
-        filterType = 'bandpass'
-        self.setFilterProps(filterType=filterType)
-        fs = 10000
-        self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
-        if DISPLAY:
-            plotFft(self.comp.filterCoeficients, 1024, fs)
-
-    def testBandStop(self):
-        filterType = 'bandstop'
-        self.setFilterProps(filterType=filterType)
-        fs = 10000
-        self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
-        if DISPLAY:
-            plotFft(self.comp.filterCoeficients, 1024, fs)
-
-
-    def testLowpassCx(self):
-        filterType = 'lowpass'
-        self.setFilterProps(filterType=filterType)
-        self.comp.filterComplex=True
-        fs = 10000
-        self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
-        if DISPLAY:
-            plotFft(self.output, 16*1024, fs)
-
-    def testHighPassCx(self):
-        filterType = 'highpass'
-        self.setFilterProps(filterType=filterType)
-        self.comp.filterComplex=True
-        fs = 10000
-        self.doImpulseResponse(fs)
-        if DISPLAY:
-            plotFft(self.output, 1024, fs)
-
-    def testBandPassCx(self):
-        filterType = 'bandpass'
-        self.setFilterProps(filterType=filterType)
-        self.comp.filterComplex=True
-        fs = 10000
-        self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
-        if DISPLAY:
-            plotFft(self.output, 16*1024, fs)
-
-    def testBandPassCx2(self):
-        filterType = 'bandpass'
-        self.setFilterProps(filterType=filterType, freq1=-1000.0, freq2=-2000.0)
-        self.comp.filterComplex=True
-        fs = 10000
-        self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
-        if DISPLAY:
-            plotFft(self.output, 16*1024, fs)
-
-    def testBandPassCx3(self):
-        filterType = 'bandpass'
-        self.setFilterProps(filterType=filterType, freq1=-2000.0, freq2=-1000.0)
-        self.comp.filterComplex=True
-        fs = 10000
-        self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
-        if DISPLAY:
-            plotFft(self.output, 16*1024, fs)
-
-    def testBandStopCx(self):
-        filterType = 'bandstop'
-        self.setFilterProps(filterType=filterType)
-        self.comp.filterComplex=True
-        fs = 10000
-        self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
-        if DISPLAY:
-            plotFft(self.output, 1024, fs)
-
-
-        
-    def main(self, inData, dataCx=False, sampleRate=1.0):    
+    def main(self, inData, dataCx=False):    
         count=0
         for data in inData:
             #just to mix things up I'm going to push threw in two stages 
             #to ensure the filter is working properly with its state
             
-            self.src.push(data,complexData=dataCx, sampleRate=sampleRate)
+            self.src.push(data,complexData=dataCx)
         while True:
             newData = self.sink.getData()
             if newData:

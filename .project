@@ -23,6 +23,11 @@ program.  If not, see http://www.gnu.org/licenses/.
 	</projects>
 	<buildSpec>
 		<buildCommand>
+			<name>gov.redhawk.ide.codegen.builders.TopLevelBuildScript</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
 			<name>gov.redhawk.ide.codegen.jet.cplusplus.builder</name>
 			<arguments>
 			</arguments>
@@ -33,7 +38,7 @@ program.  If not, see http://www.gnu.org/licenses/.
 			<arguments>
 				<dictionary>
 					<key>?name?</key>
-					<value/>
+					<value></value>
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.append_environment</key>
@@ -45,7 +50,7 @@ program.  If not, see http://www.gnu.org/licenses/.
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.buildArguments</key>
-					<value/>
+					<value></value>
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.buildCommand</key>

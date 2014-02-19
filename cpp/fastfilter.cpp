@@ -31,14 +31,11 @@ PREPARE_LOGGING(fastfilter_i)
 
 fastfilter_i::fastfilter_i(const char *uuid, const char *label) :
     fastfilter_base(uuid, label),
-    filter_(fftSize, realIn, complexIn, realOut, complexOut),
-    fs_(-1.0),
-    manualTaps_(true)
+    filter_(fftSize, realIn, complexIn, realOut, complexOut)
 {
 	setPropertyChangeListener("fftSize", this, &fastfilter_i::fftSizeChanged);
 	setPropertyChangeListener("filterComplex", this, &fastfilter_i::filterChanged);
-	setPropertyChangeListener("filterCoeficients", this, &fastfilter_i::filterCoeficientsChanged);
-	setPropertyChangeListener("filterProps", this, &fastfilter_i::filterPropsChanged);
+	setPropertyChangeListener("filterCoeficients", this, &fastfilter_i::filterChanged);
 }
 
 fastfilter_i::~fastfilter_i()
@@ -185,12 +182,6 @@ int fastfilter_i::serviceFunction()
 		return NOOP;
 	}
     bool forceSriPush = false;
-    if (fs_<-1 || tmp->sriChanged)
-	{
-		fs_ = 1.0/tmp->SRI.xdelta;
-		if (!manualTaps_)
-			filterPropsChanged("");
-	}
     if (tmp->SRI.mode==1)
     {
     	//unpack the data into a complex vector
@@ -279,54 +270,3 @@ void fastfilter_i::filterChanged(const std::string& id)
     	filter_.setTaps(taps);
     }
 }
-
-void fastfilter_i::filterCoeficientsChanged(const std::string& id)
-{
-	manualTaps_=true;
-	filterChanged(id);
-}
-
-
-void fastfilter_i::filterPropsChanged(const std::string& id)
-{
-	FIRFilter::filter_type type;
-	if (filterProps.Type=="lowpass")
-		type = FIRFilter::lowpass;
-	else if (filterProps.Type=="highpass")
-		type = FIRFilter::highpass;
-	else if (filterProps.Type=="bandpass")
-		type = FIRFilter::bandpass;
-	else if (filterProps.Type=="bandstop")
-		type = FIRFilter::bandstop;
-	else
-	{
-		LOG_ERROR(fastfilter_i, "filter type "<<filterProps.Type<<" not suported");
-	}
-	manualTaps_=false;
-	if (fs_>0)
-	{
-
-		size_t fftSizeInt(static_cast<size_t>(fftSize));
-		size_t minTaps = std::max(fftSizeInt/16,size_t(10));
-		size_t maxTaps = std::min(fftSizeInt*3/4,fftSizeInt-10);
-
-		if (filterComplex)
-		{
-			ComplexVector taps;
-			size_t len = filterdesigner_.wdfirHz(taps,type,filterProps.Ripple, filterProps.TransitionWidth, filterProps.freq1, filterProps.freq2, fs_,minTaps,maxTaps);
-			size_t realLen = len*2.0;
-			filterCoeficients.resize(realLen);
-			for (size_t i =0; i!=taps.size(); i++)
-	    	{
-				filterCoeficients[2*i] = taps[i].real();
-				filterCoeficients[2*i+1] = taps[i].imag();
-	    	}
-		}
-		else
-		{
-			size_t len = filterdesigner_.wdfirHz(filterCoeficients,type,filterProps.Ripple, filterProps.TransitionWidth, filterProps.freq1, filterProps.freq2, fs_,minTaps,maxTaps);
-		}
-		filterChanged(id);
-	}
-}
-
