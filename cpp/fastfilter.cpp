@@ -36,7 +36,7 @@ fastfilter_i::fastfilter_i(const char *uuid, const char *label) :
     manualTaps_(true)
 {
 	setPropertyChangeListener("fftSize", this, &fastfilter_i::fftSizeChanged);
-	setPropertyChangeListener("filterComplex", this, &fastfilter_i::filterChanged);
+	setPropertyChangeListener("filterComplex", this, &fastfilter_i::filterComplexChanged);
 	setPropertyChangeListener("filterCoeficients", this, &fastfilter_i::filterCoeficientsChanged);
 	setPropertyChangeListener("filterProps", this, &fastfilter_i::filterPropsChanged);
 }
@@ -282,8 +282,17 @@ void fastfilter_i::filterChanged(const std::string& id)
 
 void fastfilter_i::filterCoeficientsChanged(const std::string& id)
 {
+	//user manually configured the taps with an externally designed filter - set the boolean and update the filter
 	manualTaps_=true;
 	filterChanged(id);
+}
+void fastfilter_i::filterComplexChanged(const std::string& id)
+{
+	//recalculate if user has configured filter properties and used an internal filter designer
+	if (!manualTaps_)
+		filterPropsChanged(id);
+	else
+		filterChanged(id);
 }
 
 
@@ -305,13 +314,14 @@ void fastfilter_i::filterPropsChanged(const std::string& id)
 	manualTaps_=false;
 	if (fs_>0)
 	{
-
+		//use the interal filter designer to calculate the taps
 		size_t fftSizeInt(static_cast<size_t>(fftSize));
 		size_t minTaps = std::max(fftSizeInt/16,size_t(10));
-		size_t maxTaps = std::min(fftSizeInt*3/4,fftSizeInt-10);
+		size_t maxTaps = filter_.getMaxTaps();
 
 		if (filterComplex)
 		{
+			//calculate the complex taps and update the filterCoeficients with the demuxed real values
 			ComplexVector taps;
 			size_t len = filterdesigner_.wdfirHz(taps,type,filterProps.Ripple, filterProps.TransitionWidth, filterProps.freq1, filterProps.freq2, fs_,minTaps,maxTaps);
 			size_t realLen = len*2.0;
@@ -324,8 +334,10 @@ void fastfilter_i::filterPropsChanged(const std::string& id)
 		}
 		else
 		{
-			size_t len = filterdesigner_.wdfirHz(filterCoeficients,type,filterProps.Ripple, filterProps.TransitionWidth, filterProps.freq1, filterProps.freq2, fs_,minTaps,maxTaps);
+			//calcualte the real taps
+			filterdesigner_.wdfirHz(filterCoeficients,type,filterProps.Ripple, filterProps.TransitionWidth, filterProps.freq1, filterProps.freq2, fs_,minTaps,maxTaps);
 		}
+		//now apply the new taps
 		filterChanged(id);
 	}
 }
