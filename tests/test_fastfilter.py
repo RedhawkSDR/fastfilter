@@ -24,6 +24,7 @@ from omniORB import any
 from ossie.cf import CF
 from omniORB import CORBA
 from ossie.utils import sb
+from ossie.properties import props_to_dict
 import time
 import math
 import matplotlib.pyplot
@@ -253,32 +254,16 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.assertTrue(all([abs(x)<.01 for x in im]))
         self.assertTrue(all([abs(x-y)<.1 for x,y in zip(reSS,inData[0])]))
 
-    def doImpulseResponse(self, sampleRate=1.0):
-        print "self.comp.filterComplex", self.comp.filterComplex
-        data = [0]*self.comp.fftSize
+    def doImpulseResponse(self, sampleRate, validateFft=True):
+        #create an input with all zeros except an initial value of 1 to get the filter impulse response
+        data = [0]*int(self.comp.fftSize*1.5)
         data[0]=1
-        print "input data len = ", len(data)
+        
+        #send data into fhe filter
         self.main([data],False,sampleRate)
 
-        filtLen = len(self.comp.filterCoeficients)        
-        if self.comp.filterComplex:
-            filtLen/=2
-            coefs = toCx(self.comp.filterCoeficients)
-        else:
-            coefs = list(self.comp.filterCoeficients)
-
-        print "output len = ", len(self.output)
-        print "coefs = ", len(coefs)
-        #print coefs
-        #print self.output[:filtLen]
-        print "filtLen = ", filtLen
-
-        print "self.comp.filterCoeficients = ", self.comp.filterCoeficients
-
-        self.cmpList(coefs, self.output[:filtLen])
-        self.cmpList(self.output[filtLen:], 0)
-        #self.assertTrue(self.output[:filtLen]==coefs)
-        #self.assertTrue(all([x==0 for x in self.output[filtLen:]]))
+        #validate the response
+        self.validateImpulseResponse(validateFft)
 
     def cmpList(self,a,b):
         if isinstance(b, list):
@@ -288,6 +273,8 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
             self.assertTrue(all([abs(x-b)<.01 for x in a]))
     
     def setFilterProps(self, tw=400, filterType='lowpass', ripple=0.01, freq1=1000.0, freq2=2000.0):
+        """set the filter properties on the component
+        """
         prop = ossie.cf.CF.DataType(id='filterProps', value=CORBA.Any(CORBA.TypeCode("IDL:CF/Properties:1.0"), [ossie.cf.CF.DataType(id='TransitionWidth', value=CORBA.Any(CORBA.TC_double, tw)), 
                                                                                                                 ossie.cf.CF.DataType(id='Type', value=CORBA.Any(CORBA.TC_string, filterType)), 
                                                                                                                 ossie.cf.CF.DataType(id='Ripple', value=CORBA.Any(CORBA.TC_double, ripple)), 
@@ -295,13 +282,38 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
                                                                                                                 ossie.cf.CF.DataType(id='freq2', value=CORBA.Any(CORBA.TC_double, freq2))]))
         self.comp.configure([prop])
 
+    def getFilterProps(self):
+        """ get the filter properties from the component
+        """
+        props = self.comp.query([])
+        d = props_to_dict(props)
+        return d['filterProps']
         
     def testLowpass(self):
         filterType = 'lowpass'
         self.setFilterProps(filterType=filterType)
         fs = 10000
         self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
+        if DISPLAY:
+            plotFft(self.output, 1024, fs)
+
+    def testLowpass2(self):
+        """transition width is too small - we will maximize our taps and not pass validation
+        """
+        filterType = 'lowpass'
+        self.setFilterProps(filterType=filterType, tw=10)
+        fs = 10000
+        self.doImpulseResponse(fs, False)
+        if DISPLAY:
+            plotFft(self.output, 1024, fs)
+
+    def testLowpass3(self):
+        """do a lowpass with different specifications
+        """
+        filterType = 'lowpass'
+        self.setFilterProps(filterType=filterType, tw=500, ripple=.001, freq1=3000)
+        fs = 10000
+        self.doImpulseResponse(fs)
         if DISPLAY:
             plotFft(self.output, 1024, fs)
 
@@ -310,16 +322,14 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.setFilterProps(filterType=filterType)
         fs = 10000
         self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
         if DISPLAY:
-            plotFft(self.comp.filterCoeficients, 1024, fs)
+            plotFft(self.output, 1024, fs)
 
     def testBandPass(self):
         filterType = 'bandpass'
         self.setFilterProps(filterType=filterType)
         fs = 10000
         self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
         if DISPLAY:
             plotFft(self.comp.filterCoeficients, 1024, fs)
 
@@ -328,7 +338,6 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.setFilterProps(filterType=filterType)
         fs = 10000
         self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
         if DISPLAY:
             plotFft(self.comp.filterCoeficients, 1024, fs)
 
@@ -339,7 +348,6 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.comp.filterComplex=True
         fs = 10000
         self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
         if DISPLAY:
             plotFft(self.output, 16*1024, fs)
 
@@ -358,27 +366,39 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.comp.filterComplex=True
         fs = 10000
         self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
         if DISPLAY:
             plotFft(self.output, 16*1024, fs)
 
     def testBandPassCx2(self):
+        """use negative frequencies only for complex filtering
+        """
         filterType = 'bandpass'
         self.setFilterProps(filterType=filterType, freq1=-1000.0, freq2=-2000.0)
         self.comp.filterComplex=True
         fs = 10000
         self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
         if DISPLAY:
             plotFft(self.output, 16*1024, fs)
 
     def testBandPassCx3(self):
+        """Use negative frequencies only but "reverse" f1 and f2
+        """
         filterType = 'bandpass'
         self.setFilterProps(filterType=filterType, freq1=-2000.0, freq2=-1000.0)
         self.comp.filterComplex=True
         fs = 10000
         self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
+        if DISPLAY:
+            plotFft(self.output, 16*1024, fs)
+    
+    def testBandPassCx4(self):
+        """use a complex fitler which spans d.c - its lower frequency is negative but its upper is postiive
+        """
+        filterType = 'bandpass'
+        self.setFilterProps(filterType=filterType, freq1=-1000.0, freq2=2000.0)
+        self.comp.filterComplex=True
+        fs = 10000
+        self.doImpulseResponse(fs)
         if DISPLAY:
             plotFft(self.output, 16*1024, fs)
 
@@ -388,11 +408,83 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.comp.filterComplex=True
         fs = 10000
         self.doImpulseResponse(fs)
-        print self.comp.filterCoeficients
         if DISPLAY:
             plotFft(self.output, 1024, fs)
 
+    def validateImpulseResponse(self, validateFft):        
+        filtLen = len(self.comp.filterCoeficients)        
+        cxTaps = self.comp.filterComplex
+        if cxTaps:
+            filtLen/=2
+            coefs = toCx(self.comp.filterCoeficients)
+        else:
+            coefs = list(self.comp.filterCoeficients)            
 
+        #verify we have enough data
+        self.assertTrue(len(self.output)>= len(coefs))
+        #verify the impulse response out of the filter is equal to the filter taps
+        self.assertTrue(all([abs(x-y) < .01 for x, y in zip(self.output, coefs)]))
+        self.assertTrue(all([abs(x)<.01 for x in self.output[filtLen:]]))
+        
+        if validateFft:
+            #take the fft of the fitler taps and validate the passband/stopband 
+            #regions are correct for the given fitler specifications
+            fftSize = int(2**(math.ceil(math.log(filtLen,2))+1))
+            fs = 1.0/self.sink.sri().xdelta
+            fIn =scipy.fftpack.fft(coefs,fftSize)
+            freqsIn = scipy.fftpack.fftfreq(fftSize,1.0/fs)
+    
+            #get the filter properties
+            filterProps = self.getFilterProps()
+            filterType = filterProps['Type']
+            tol = filterProps['TransitionWidth']
+            ripple=filterProps['Ripple']
+            f1 = filterProps['freq1']
+            f2 = filterProps['freq2']
+            delta = tol #technically this shoudl be tol*.5 but we have a little grace in our calculations
+            
+            #build up the passband/stopband regions per the filter specs
+            if filterType == 'lowpass':
+                passband = [(-f1+delta, f1-delta)]
+                stopband = [(-fs/2.0,-f1-delta), (f1+delta, fs/2.0)]
+            elif filterType == 'highpass':
+                stopband = [(-f1+delta, f1-delta)]
+                passband = [(-fs/2.0,-f1-delta), (f1+delta, fs/2.0)]
+            else: #bandpass or stopband
+                l = [f1, f2]
+                l.sort()
+                fl, fh = l 
+                if filterType == 'bandpass':
+                    if cxTaps:
+                       passband = [(fl+delta, fh-delta)]
+                       stopband = [(-fs/2.0,fl-delta), (fh+delta, fs/2.0)]
+                    else:
+                       passband = [(-fh+delta, -fl-delta), (fl+delta, fh-delta)]
+                       stopband = [(-fs/2.0,-fh-delta), (-fl+delta,fl-delta), (fh+delta, fs/2.0)]
+                else:
+                    if cxTaps:
+                       stopband = [(fl+delta, fh-delta)]
+                       passband = [(-fs/2.0,fl-delta), (fh+delta, fs/2.0)]
+                    else:
+                       stopband = [(-fh+delta, -fl-delta), (fl+delta, fh-delta)]
+                       passband = [(-fs/2.0,-fh-delta), (-fl+delta,fl-delta), (fh+delta, fs/2.0)]
+    
+            for freq, val in zip(freqsIn, fIn):
+                #for each fft value/frequency - if in passband or stopband ensure the value is correct
+                inPassband = False
+                for fmin, fmax in passband:
+                    if fmin<=freq<=fmax:
+                        #print "pb, freq = ", freq, "val = ", val, "1.- abs(val) = ", 1.0-abs(val), "ripple = ", ripple
+                        self.assertTrue(1.0-abs(val)<ripple)
+                        inPassband = True
+                        break
+                if not inPassband:
+                    for fmin, fmax in stopband:
+                        if fmin<=freq<=fmax:
+                            #print "sb, freq = ", freq, "val = ", val, "abs(val) = ", abs(val), "ripple = ", ripple
+                            self.assertTrue(abs(val)<ripple)
+                            break
+    
         
     def main(self, inData, dataCx=False, sampleRate=1.0):    
         count=0
@@ -406,7 +498,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
             if newData:
                 count = 0
                 self.output.extend(newData)
-            elif count==50:
+            elif count==200:
                 break
             time.sleep(.01)
             count+=1
