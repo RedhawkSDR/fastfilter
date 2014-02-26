@@ -22,6 +22,7 @@ program.  If not, see http://www.gnu.org/licenses/.
   <author>
     <name>null</name>
   </author>
+  <description>fastfilter is FIR filter implementation using the fft based overlap-add  technique.  This component includes a filter designer which aids in impulse response creation for lowpass, highpass, bandpass, and bandstop filters.  It accepts custom impulse responses via property configuration. </description>
   <propertyfile type="PRF">
     <localfile name="fastfilter.prf.xml"/>
   </propertyfile>

@@ -19,11 +19,13 @@ program.  If not, see http://www.gnu.org/licenses/.
 <!DOCTYPE properties PUBLIC "-//JTRS//DTD SCA V2.2.2 PRF//EN" "properties.dtd">
 <properties>
   <simple id="fftSize" mode="readwrite" type="ulong">
+    <description>fftSize used in filter implementation</description>
     <value>1024</value>
     <kind kindtype="configure"/>
     <action type="external"/>
   </simple>
   <simplesequence id="filterCoeficients" mode="readwrite" type="float">
+    <description>coefcients for filter taps contianing the impulse response.  This can be configured custom or it will be set by configuring the filterProps struct property.</description>
     <values>
       <value>1</value>
     </values>
@@ -31,11 +33,13 @@ program.  If not, see http://www.gnu.org/licenses/.
     <action type="external"/>
   </simplesequence>
   <simple id="filterComplex" mode="readwrite" type="boolean">
+    <description>Is the sequence contained in the property &quot;filterCoeficients&quot; real or complex?</description>
     <value>False</value>
     <kind kindtype="configure"/>
     <action type="external"/>
   </simple>
   <struct id="filterProps" mode="readwrite">
+    <description>Configure this property to use the internal filter designer to create your filter coeficients.</description>
     <simple id="TransitionWidth" mode="readwrite" type="double">
       <description>Desired transition region width</description>
       <value>800</value>
@@ -62,7 +66,7 @@ program.  If not, see http://www.gnu.org/licenses/.
       <action type="external"/>
     </simple>
     <simple id="freq1" mode="readwrite" type="double">
-      <description>First transition frequency - used for all frequncy types</description>
+      <description>First transition frequency - used for all frequncy types.</description>
       <value>1000</value>
       <kind kindtype="configure"/>
       <action type="external"/>
