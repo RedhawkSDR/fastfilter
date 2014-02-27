@@ -31,7 +31,7 @@ import matplotlib.pyplot
 import scipy.fftpack
 
 
-DISPLAY = False
+DISPLAY = True
 
 def plotFft(sig, fftSize=None, sampleRate=1.0):
     if fftSize==None:
@@ -411,6 +411,26 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         if DISPLAY:
             plotFft(self.output, 1024, fs)
 
+    def eos(self):
+        """ensure sending eos clears out the data appropraitely
+        """
+        self.comp.fftSize = 1024
+        filterType = 'lowpass'
+        self.setFilterProps(filterType=filterType)
+                         
+        #run data threw the filter to get state in there  
+        dataA = getSin(.05, 4*513)
+        dataB = getSin(.0123, 4*513,phase0=.054)
+        #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
+        inData=[[x+y for x,y in zip(dataA,dataB)]]
+        self.main(inData, eos=True)
+        self.output = []
+        
+        fs = 10000
+        self.doImpulseResponse(fs)
+        if DISPLAY:
+            plotFft(self.output, 1024, fs)
+
     def validateImpulseResponse(self, validateFft):        
         filtLen = len(self.comp.filterCoeficients)        
         cxTaps = self.comp.filterComplex
@@ -486,13 +506,14 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
                             break
     
         
-    def main(self, inData, dataCx=False, sampleRate=1.0):    
+    def main(self, inData, dataCx=False, sampleRate=1.0, eos=False):    
         count=0
-        for data in inData:
+        lastPktIndex = len(inData)-1
+        for i, data in enumerate(inData):
             #just to mix things up I'm going to push threw in two stages 
             #to ensure the filter is working properly with its state
-            
-            self.src.push(data,complexData=dataCx, sampleRate=sampleRate)
+            EOS = eos and i == lastPktIndex
+            self.src.push(data,complexData=dataCx, sampleRate=sampleRate, EOS=EOS)
         while True:
             newData = self.sink.getData()
             if newData:

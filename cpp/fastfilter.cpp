@@ -33,7 +33,9 @@ fastfilter_i::fastfilter_i(const char *uuid, const char *label) :
     fastfilter_base(uuid, label),
     filter_(fftSize, realIn, complexIn, realOut, complexOut),
     fs_(-1.0),
-    manualTaps_(true)
+    manualTaps_(true),
+    updateFFT_(false),
+    updateFilter_(false)
 {
 	setPropertyChangeListener("fftSize", this, &fastfilter_i::fftSizeChanged);
 	setPropertyChangeListener("filterComplex", this, &fastfilter_i::filterComplexChanged);
@@ -184,15 +186,62 @@ int fastfilter_i::serviceFunction()
 	if (not tmp) { // No data is available
 		return NOOP;
 	}
-    bool forceSriPush = false;
-    if (fs_<-1 || tmp->sriChanged)
+	std::string thisStreamID(tmp->SRI.streamID);
+    if (!streamID_.empty() && (thisStreamID != streamID_))
+    {
+    	LOG_ERROR(fastfilter_i, "sri streamID "<<tmp->SRI.streamID<< " not equal to working streamID "<< streamID_<<".  Current processing allows only a single streamID.  This data will be thrown on the floor");
+    	delete tmp;
+    	return NORMAL;
+    }
+	bool forceSriPush = false;
+    if (streamID_.empty() || tmp->sriChanged)
 	{
-		fs_ = 1.0/tmp->SRI.xdelta;
-		if (!manualTaps_)
-			filterPropsChanged("");
+		streamID_ = thisStreamID;
+		forceSriPush=true;
 	}
+    //check to see if we need to update the filter state
+    if (updateFFT_)
+    {
+    	filter_.setFftSize(fftSize);
+    	updateFFT_=false;
+    }
+    float fs = 1.0/tmp->SRI.xdelta;
+	//on sample rate changes we must redesign the filter if we are not in manual taps mode
+    if (fs !=fs_)
+	{
+		fs_ =fs;
+		if (!manualTaps_)
+		{
+			//need to redesign our filter if the sampling rate has changed
+			filterPropsChanged("");
+		}
+	}
+
+    if (updateFilter_)
+    {
+    	//apply whatever is in the filterCoeficients to the filter - doesn't matter if they got done via manual configuraiton or designer
+        if (filterComplex)
+        {
+        	ComplexFFTWVector taps(filterCoeficients.size()/2);
+        	for (size_t i =0; i!=taps.size(); i++)
+        	{
+        		taps[i] = std::complex<float>(filterCoeficients[2*i], filterCoeficients[2*i+1]);
+        	}
+        	filter_.setTaps(taps);
+        }
+        else
+        {
+        	RealFFTWVector taps(filterCoeficients.size());
+        	copy(filterCoeficients.begin(), filterCoeficients.end(), taps.begin());
+        	filter_.setTaps(taps);
+        }
+        updateFilter_=false;
+    }
+
+    //now process the data
     if (tmp->SRI.mode==1)
     {
+        //data is complex
     	//unpack the data into a complex vector
     	complexIn.resize(tmp->dataBuffer.size()/2);
     	for (size_t i=0; i!= complexIn.size(); i++)
@@ -206,6 +255,7 @@ int fastfilter_i::serviceFunction()
     }
     else
     {
+        //data is real
     	//asign the new vector becaus of the allocator issue - it is just easier to copy the data
     	realIn.assign(tmp->dataBuffer.begin(), tmp->dataBuffer.end());
     	//filter the data
@@ -232,14 +282,21 @@ int fastfilter_i::serviceFunction()
     }
     if (!realOut.empty())
     {
-    	if (forceSriPush)
+    	if (forceSriPush && tmp->SRI.mode==1)
     	{
-    		//change mode back to 0 and send another sri
+    		//change mode back to 0 and send another sri with our real output
     		tmp->SRI.mode=0;
     		dataFloat_out->pushSRI(tmp->SRI);
     	}
     	dataFloat_out->pushPacket(realOut, tmp->T, tmp->EOS, tmp->streamID);
     	realOut.clear();
+    }
+    if (tmp->EOS)
+    {
+    	//reset our state so we can process new streamIDs
+    	streamID_="";
+    	fs_ = -1.0;
+    	filter_.flush();
     }
     delete tmp; // IMPORTANT: MUST RELEASE THE RECEIVED DATA BLOCK
     return NORMAL;
@@ -256,48 +313,37 @@ void fastfilter_i::cxOutputToReal()
 	complexOut.clear();
 }
 
+//HERE ARE all the filter callbacks
+
 void fastfilter_i::fftSizeChanged(const std::string& id)
 {
-	filter_.setFftSize(fftSize);
-}
-
-void fastfilter_i::filterChanged(const std::string& id)
-{
-    if (filterComplex)
-    {
-    	ComplexFFTWVector taps(filterCoeficients.size()/2);
-    	for (size_t i =0; i!=taps.size(); i++)
-    	{
-    		taps[i] = std::complex<float>(filterCoeficients[2*i], filterCoeficients[2*i+1]);
-    	}
-    	filter_.setTaps(taps);
-    }
-    else
-    {
-    	RealFFTWVector taps(filterCoeficients.size());
-    	copy(filterCoeficients.begin(), filterCoeficients.end(), taps.begin());
-    	filter_.setTaps(taps);
-    }
+	//set the flag to update the filter FFT next processing loop
+	updateFFT_=true;
 }
 
 void fastfilter_i::filterCoeficientsChanged(const std::string& id)
 {
-	//user manually configured the taps with an externally designed filter - set the boolean and update the filter
+	//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
 	manualTaps_=true;
-	filterChanged(id);
+	updateFilter_=true;
 }
 void fastfilter_i::filterComplexChanged(const std::string& id)
 {
 	//recalculate if user has configured filter properties and used an internal filter designer
+	//with different complexity
 	if (!manualTaps_)
 		filterPropsChanged(id);
-	else
-		filterChanged(id);
+	updateFilter_=true;
 }
 
 
 void fastfilter_i::filterPropsChanged(const std::string& id)
 {
+	//this could be called via property trigger or via sample rate change in the main loop
+	//put a lock here to be on the safe side
+
+	boost::mutex::scoped_lock lock(filterDesignLock_);
+	//design the filter according to the filterProps specfications and set the output in the filterCoeficients property
 	FIRFilter::filter_type type;
 	if (filterProps.Type=="lowpass")
 		type = FIRFilter::lowpass;
@@ -310,8 +356,10 @@ void fastfilter_i::filterPropsChanged(const std::string& id)
 	else
 	{
 		LOG_ERROR(fastfilter_i, "filter type "<<filterProps.Type<<" not suported");
+		return;
 	}
 	manualTaps_=false;
+	//we can only design the filter if we have a valid sampling rate
 	if (fs_>0)
 	{
 		//use the interal filter designer to calculate the taps
@@ -337,8 +385,7 @@ void fastfilter_i::filterPropsChanged(const std::string& id)
 			//calcualte the real taps
 			filterdesigner_.wdfirHz(filterCoeficients,type,filterProps.Ripple, filterProps.TransitionWidth, filterProps.freq1, filterProps.freq2, fs_,minTaps,maxTaps);
 		}
-		//now apply the new taps
-		filterChanged(id);
+		updateFilter_=true;
 	}
 }
 
