@@ -186,6 +186,12 @@ int fastfilter_i::serviceFunction()
 	if (not tmp) { // No data is available
 		return NOOP;
 	}
+	if (tmp->inputQueueFlushed)
+	{
+		LOG_WARN(fastfilter_i, "input Q flushed - data has been thrown on the floor.  flushing internal buffers");
+		//flush all our processor states if the Q flushed
+		filter_.flush();
+	}
 	std::string thisStreamID(tmp->SRI.streamID);
     if (!streamID_.empty() && (thisStreamID != streamID_))
     {

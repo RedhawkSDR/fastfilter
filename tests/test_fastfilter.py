@@ -31,7 +31,7 @@ import matplotlib.pyplot
 import scipy.fftpack
 
 
-DISPLAY = True
+DISPLAY = False
 
 def plotFft(sig, fftSize=None, sampleRate=1.0):
     if fftSize==None:
