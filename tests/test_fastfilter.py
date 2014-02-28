@@ -192,7 +192,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
     def testReal(self):
         filter = getSink(.2, 513)
         self.comp.fftSize = 1024
-        self.comp.filterCoeficients = filter
+        self.comp.filterCoefficients = filter
         dataA = getSin(.05, 4*513)
         dataB = getSin(.0123, 4*513,phase0=.054)
         #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
@@ -208,7 +208,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         cxFilter = muxZeros(filter)
         self.comp.fftSize = 1024
         self.comp.filterComplex = True
-        self.comp.filterCoeficients = cxFilter
+        self.comp.filterCoefficients = cxFilter
         dataA = getSin(.05, 4*513)
         dataB = getSin(.0123, 4*513,phase0=.054)
         #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
@@ -224,7 +224,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
     def testCxRealFilt(self):
         filter = getSink(.2, 513)
         self.comp.fftSize = 1024
-        self.comp.filterCoeficients = filter
+        self.comp.filterCoefficients = filter
         dataA = getSin(.05, 4*513)
         dataB = getSin(.0123, 4*513,phase0=.054)
         inData=[x+y for x,y in zip(dataA,dataB)]
@@ -242,7 +242,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         cxFilter = muxZeros(filter)
         self.comp.fftSize = 1024
         self.comp.filterComplex = True
-        self.comp.filterCoeficients = cxFilter
+        self.comp.filterCoefficients = cxFilter
         dataA = getSin(.05, 4*513)
         dataB = getSin(.0123, 4*513,phase0=.054)
         #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
@@ -331,7 +331,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         fs = 10000
         self.doImpulseResponse(fs)
         if DISPLAY:
-            plotFft(self.comp.filterCoeficients, 1024, fs)
+            plotFft(self.comp.filterCoefficients, 1024, fs)
 
     def testBandStop(self):
         filterType = 'bandstop'
@@ -339,7 +339,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         fs = 10000
         self.doImpulseResponse(fs)
         if DISPLAY:
-            plotFft(self.comp.filterCoeficients, 1024, fs)
+            plotFft(self.comp.filterCoefficients, 1024, fs)
 
 
     def testLowpassCx(self):
@@ -412,13 +412,13 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
             plotFft(self.output, 1024, fs)
 
     def eos(self):
-        """ensure sending eos clears out the data appropraitely
+        """ensure sending eos clears out the data appropriately
         """
         self.comp.fftSize = 1024
         filterType = 'lowpass'
         self.setFilterProps(filterType=filterType)
                          
-        #run data threw the filter to get state in there  
+        #run data through the filter to get state in there  
         dataA = getSin(.05, 4*513)
         dataB = getSin(.0123, 4*513,phase0=.054)
         #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
@@ -432,26 +432,26 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
             plotFft(self.output, 1024, fs)
 
     def validateImpulseResponse(self, validateFft):        
-        filtLen = len(self.comp.filterCoeficients)        
+        filtLen = len(self.comp.filterCoefficients)
         cxTaps = self.comp.filterComplex
         if cxTaps:
             filtLen/=2
-            coefs = toCx(self.comp.filterCoeficients)
+            coeffs = toCx(self.comp.filterCoefficients)
         else:
-            coefs = list(self.comp.filterCoeficients)            
+            coeffs = list(self.comp.filterCoefficients)
 
         #verify we have enough data
-        self.assertTrue(len(self.output)>= len(coefs))
+        self.assertTrue(len(self.output)>= len(coeffs))
         #verify the impulse response out of the filter is equal to the filter taps
-        self.assertTrue(all([abs(x-y) < .01 for x, y in zip(self.output, coefs)]))
+        self.assertTrue(all([abs(x-y) < .01 for x, y in zip(self.output, coeffs)]))
         self.assertTrue(all([abs(x)<.01 for x in self.output[filtLen:]]))
         
         if validateFft:
             #take the fft of the fitler taps and validate the passband/stopband 
-            #regions are correct for the given fitler specifications
+            #regions are correct for the given filter specifications
             fftSize = int(2**(math.ceil(math.log(filtLen,2))+1))
             fs = 1.0/self.sink.sri().xdelta
-            fIn =scipy.fftpack.fft(coefs,fftSize)
+            fIn =scipy.fftpack.fft(coeffs,fftSize)
             freqsIn = scipy.fftpack.fftfreq(fftSize,1.0/fs)
     
             #get the filter properties
@@ -461,7 +461,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
             ripple=filterProps['Ripple']
             f1 = filterProps['freq1']
             f2 = filterProps['freq2']
-            delta = tol #technically this shoudl be tol*.5 but we have a little grace in our calculations
+            delta = tol #technically this should be tol*.5 but we have a little grace in our calculations
             
             #build up the passband/stopband regions per the filter specs
             if filterType == 'lowpass':
@@ -510,7 +510,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         count=0
         lastPktIndex = len(inData)-1
         for i, data in enumerate(inData):
-            #just to mix things up I'm going to push threw in two stages 
+            #just to mix things up I'm going to push through in two stages
             #to ensure the filter is working properly with its state
             EOS = eos and i == lastPktIndex
             self.src.push(data,complexData=dataCx, sampleRate=sampleRate, EOS=EOS)

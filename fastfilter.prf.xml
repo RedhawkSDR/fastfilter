@@ -24,8 +24,8 @@ program.  If not, see http://www.gnu.org/licenses/.
     <kind kindtype="configure"/>
     <action type="external"/>
   </simple>
-  <simplesequence id="filterCoeficients" mode="readwrite" type="float">
-    <description>coefcients for filter taps contianing the impulse response.  This can be configured custom or it will be set by configuring the filterProps struct property.</description>
+  <simplesequence id="filterCoefficients" mode="readwrite" type="float">
+    <description>coefficients for filter taps containing the impulse response.  This can be configured with this property, or it can be set by configuring the filterProps struct property.</description>
     <values>
       <value>1</value>
     </values>
@@ -33,13 +33,13 @@ program.  If not, see http://www.gnu.org/licenses/.
     <action type="external"/>
   </simplesequence>
   <simple id="filterComplex" mode="readwrite" type="boolean">
-    <description>Is the sequence contained in the property &quot;filterCoeficients&quot; real or complex?</description>
+    <description>Is the sequence contained in the property &quot;filterCoefficients&quot; real or complex?</description>
     <value>False</value>
     <kind kindtype="configure"/>
     <action type="external"/>
   </simple>
   <struct id="filterProps" mode="readwrite">
-    <description>Configure this property to use the internal filter designer to create your filter coeficients.</description>
+    <description>Configure this property to use the internal filter designer to create your filter coefficients.</description>
     <simple id="TransitionWidth" mode="readwrite" type="double">
       <description>Desired transition region width</description>
       <value>800</value>

@@ -39,7 +39,7 @@ fastfilter_i::fastfilter_i(const char *uuid, const char *label) :
 {
 	setPropertyChangeListener("fftSize", this, &fastfilter_i::fftSizeChanged);
 	setPropertyChangeListener("filterComplex", this, &fastfilter_i::filterComplexChanged);
-	setPropertyChangeListener("filterCoeficients", this, &fastfilter_i::filterCoeficientsChanged);
+	setPropertyChangeListener("filterCoefficients", this, &fastfilter_i::filterCoefficientsChanged);
 	setPropertyChangeListener("filterProps", this, &fastfilter_i::filterPropsChanged);
 }
 
@@ -188,8 +188,8 @@ int fastfilter_i::serviceFunction()
 	}
 	if (tmp->inputQueueFlushed)
 	{
-		LOG_WARN(fastfilter_i, "input Q flushed - data has been thrown on the floor.  flushing internal buffers");
-		//flush all our processor states if the Q flushed
+		LOG_WARN(fastfilter_i, "input queue flushed - data has been thrown on the floor.  flushing internal buffers");
+		//flush all our processor states if the queue flushed
 		filter_.flush();
 	}
 	std::string thisStreamID(tmp->SRI.streamID);
@@ -225,20 +225,20 @@ int fastfilter_i::serviceFunction()
 
     if (updateFilter_)
     {
-    	//apply whatever is in the filterCoeficients to the filter - doesn't matter if they got done via manual configuraiton or designer
+    	//apply whatever is in the filterCoefficients to the filter - doesn't matter if they got done via manual configuraiton or designer
         if (filterComplex)
         {
-        	ComplexFFTWVector taps(filterCoeficients.size()/2);
+        	ComplexFFTWVector taps(filterCoefficients.size()/2);
         	for (size_t i =0; i!=taps.size(); i++)
         	{
-        		taps[i] = std::complex<float>(filterCoeficients[2*i], filterCoeficients[2*i+1]);
+        		taps[i] = std::complex<float>(filterCoefficients[2*i], filterCoefficients[2*i+1]);
         	}
         	filter_.setTaps(taps);
         }
         else
         {
-        	RealFFTWVector taps(filterCoeficients.size());
-        	copy(filterCoeficients.begin(), filterCoeficients.end(), taps.begin());
+        	RealFFTWVector taps(filterCoefficients.size());
+        	copy(filterCoefficients.begin(), filterCoefficients.end(), taps.begin());
         	filter_.setTaps(taps);
         }
         updateFilter_=false;
@@ -327,7 +327,7 @@ void fastfilter_i::fftSizeChanged(const std::string& id)
 	updateFFT_=true;
 }
 
-void fastfilter_i::filterCoeficientsChanged(const std::string& id)
+void fastfilter_i::filterCoefficientsChanged(const std::string& id)
 {
 	//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
 	manualTaps_=true;
@@ -349,7 +349,7 @@ void fastfilter_i::filterPropsChanged(const std::string& id)
 	//put a lock here to be on the safe side
 
 	boost::mutex::scoped_lock lock(filterDesignLock_);
-	//design the filter according to the filterProps specfications and set the output in the filterCoeficients property
+	//design the filter according to the filterProps specifications and set the output in the filterCoefficients property
 	FIRFilter::filter_type type;
 	if (filterProps.Type=="lowpass")
 		type = FIRFilter::lowpass;
@@ -375,21 +375,21 @@ void fastfilter_i::filterPropsChanged(const std::string& id)
 
 		if (filterComplex)
 		{
-			//calculate the complex taps and update the filterCoeficients with the demuxed real values
+			//calculate the complex taps and update the filterCoefficients with the demuxed real values
 			ComplexVector taps;
 			size_t len = filterdesigner_.wdfirHz(taps,type,filterProps.Ripple, filterProps.TransitionWidth, filterProps.freq1, filterProps.freq2, fs_,minTaps,maxTaps);
 			size_t realLen = len*2.0;
-			filterCoeficients.resize(realLen);
+                        filterCoefficients.resize(realLen);
 			for (size_t i =0; i!=taps.size(); i++)
 	    	{
-				filterCoeficients[2*i] = taps[i].real();
-				filterCoeficients[2*i+1] = taps[i].imag();
+                        filterCoefficients[2*i] = taps[i].real();
+                        filterCoefficients[2*i+1] = taps[i].imag();
 	    	}
 		}
 		else
 		{
 			//calcualte the real taps
-			filterdesigner_.wdfirHz(filterCoeficients,type,filterProps.Ripple, filterProps.TransitionWidth, filterProps.freq1, filterProps.freq2, fs_,minTaps,maxTaps);
+			filterdesigner_.wdfirHz(filterCoefficients,type,filterProps.Ripple, filterProps.TransitionWidth, filterProps.freq1, filterProps.freq2, fs_,minTaps,maxTaps);
 		}
 		updateFilter_=true;
 	}

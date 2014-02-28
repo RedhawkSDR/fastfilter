@@ -151,10 +151,10 @@ void fastfilter_base::loadProperties()
                 "configure");
 
     // Set the sequence with its initial values
-    filterCoeficients.push_back(1);
-    addProperty(filterCoeficients,
-                filterCoeficients,
-                "filterCoeficients",
+    filterCoefficients.push_back(1);
+    addProperty(filterCoefficients,
+                filterCoefficients,
+                "filterCoefficients",
                 "",
                 "readwrite",
                 "",

@@ -29,7 +29,7 @@ class fastfilter_i : public fastfilter_base
         //internal helper function
         void cxOutputToReal();
         void fftSizeChanged(const std::string& id);
-        void filterCoeficientsChanged(const std::string& id);
+        void filterCoefficientsChanged(const std::string& id);
         void filterComplexChanged(const std::string& id);
         void filterPropsChanged(const std::string& id);
         FirFilterDesigner filterdesigner_;
