@@ -27,11 +27,13 @@ from ossie.utils import sb
 from ossie.properties import props_to_dict
 import time
 import math
-import matplotlib.pyplot
-import scipy.fftpack
-
 
 DISPLAY = False
+if DISPLAY:
+    import matplotlib.pyplot
+
+import scipy.fftpack
+
 
 def plotFft(sig, fftSize=None, sampleRate=1.0):
     if fftSize==None:
