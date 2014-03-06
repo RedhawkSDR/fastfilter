@@ -6,9 +6,7 @@
     AUTO-GENERATED CODE. DO NOT MODIFY
 
 *******************************************************************************************/
-
 #include <ossie/CorbaUtils.h>
-#include <ossie/PropertyInterface.h>
 
 struct filterProps_struct {
     filterProps_struct ()
@@ -38,16 +36,16 @@ inline bool operator>>= (const CORBA::Any& a, filterProps_struct& s) {
         if (!strcmp("TransitionWidth", props[idx].id)) {
             if (!(props[idx].value >>= s.TransitionWidth)) return false;
         }
-        if (!strcmp("Type", props[idx].id)) {
+        else if (!strcmp("Type", props[idx].id)) {
             if (!(props[idx].value >>= s.Type)) return false;
         }
-        if (!strcmp("Ripple", props[idx].id)) {
+        else if (!strcmp("Ripple", props[idx].id)) {
             if (!(props[idx].value >>= s.Ripple)) return false;
         }
-        if (!strcmp("freq1", props[idx].id)) {
+        else if (!strcmp("freq1", props[idx].id)) {
             if (!(props[idx].value >>= s.freq1)) return false;
         }
-        if (!strcmp("freq2", props[idx].id)) {
+        else if (!strcmp("freq2", props[idx].id)) {
             if (!(props[idx].value >>= s.freq2)) return false;
         }
     }
@@ -87,26 +85,6 @@ inline bool operator== (const filterProps_struct& s1, const filterProps_struct& 
 inline bool operator!= (const filterProps_struct& s1, const filterProps_struct& s2) {
     return !(s1==s2);
 };
-
-template<> inline short StructProperty<filterProps_struct>::compare (const CORBA::Any& a) {
-    if (super::isNil_) {
-        if (a.type()->kind() == (CORBA::tk_null)) {
-            return 0;
-        }
-        return 1;
-    }
-
-    filterProps_struct tmp;
-    if (fromAny(a, tmp)) {
-        if (tmp != this->value_) {
-            return 1;
-        }
-
-        return 0;
-    } else {
-        return 1;
-    }
-}
 
 
 #endif

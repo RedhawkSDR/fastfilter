@@ -22,7 +22,7 @@
 #include <boost/thread.hpp>
 #include <ossie/Resource_impl.h>
 
-#include "bulkio/bulkio.h"
+#include <bulkio/bulkio.h>
 #include "struct_props.h"
 
 #define NOOP 0
