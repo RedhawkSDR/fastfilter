@@ -1,3 +1,20 @@
+/*
+ * This file is protected by Copyright. Please refer to the COPYRIGHT file distributed with this
+ * source distribution.
+ *
+ * This file is part of REDHAWK Basic Components fastfilter.
+ *
+ * REDHAWK Basic Components fastfilter is free software: you can redistribute it and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation, either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * REDHAWK Basic Components fastfilter is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ * PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this
+ * program.  If not, see http://www.gnu.org/licenses/.
+ */
 #ifndef STRUCTPROPS_H
 #define STRUCTPROPS_H
 
@@ -15,6 +32,7 @@ struct filterProps_struct {
         Ripple = 0.01;
         freq1 = 1000;
         freq2 = 2000;
+        filterComplex = false;
     };
 
     static std::string getId() {
@@ -26,6 +44,7 @@ struct filterProps_struct {
     double Ripple;
     double freq1;
     double freq2;
+    bool filterComplex;
 };
 
 inline bool operator>>= (const CORBA::Any& a, filterProps_struct& s) {
@@ -48,13 +67,16 @@ inline bool operator>>= (const CORBA::Any& a, filterProps_struct& s) {
         else if (!strcmp("freq2", props[idx].id)) {
             if (!(props[idx].value >>= s.freq2)) return false;
         }
+        if (!strcmp("filterComplex", props[idx].id)) {
+            if (!(props[idx].value >>= s.filterComplex)) return false;
+        }
     }
     return true;
 };
 
 inline void operator<<= (CORBA::Any& a, const filterProps_struct& s) {
     CF::Properties props;
-    props.length(5);
+    props.length(6);
     props[0].id = CORBA::string_dup("TransitionWidth");
     props[0].value <<= s.TransitionWidth;
     props[1].id = CORBA::string_dup("Type");
@@ -65,6 +87,8 @@ inline void operator<<= (CORBA::Any& a, const filterProps_struct& s) {
     props[3].value <<= s.freq1;
     props[4].id = CORBA::string_dup("freq2");
     props[4].value <<= s.freq2;
+    props[5].id = CORBA::string_dup("filterComplex");
+    props[5].value <<= s.filterComplex;
     a <<= props;
 };
 
@@ -78,6 +102,8 @@ inline bool operator== (const filterProps_struct& s1, const filterProps_struct& 
     if (s1.freq1!=s2.freq1)
         return false;
     if (s1.freq2!=s2.freq2)
+        return false;
+    if (s1.filterComplex!=s2.filterComplex)
         return false;
     return true;
 };

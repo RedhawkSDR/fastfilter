@@ -27,6 +27,8 @@ from ossie.utils import sb
 from ossie.properties import props_to_dict
 import time
 import math
+import random
+import scipy.signal
 
 DISPLAY = False
 if DISPLAY:
@@ -34,6 +36,16 @@ if DISPLAY:
 
 import scipy.fftpack
 
+def scipyCorl(filter,data):
+    if len(data)<=len(filter):
+        #make sure that the data is bigger then the filter by padding zeros to the end
+        numPad =  len(filter) - len(data) +1
+        dataPad = data[:]
+        dataPad.extend([0]*numPad)
+        #now take only the non-zero ouputs that we need
+        return scipy.signal.correlate(dataPad,filter,'full')[:len(filter) + len(data)-1]
+    else:
+        return scipy.signal.correlate(data,filter,'full')
 
 def plotFft(sig, fftSize=None, sampleRate=1.0):
     if fftSize==None:
@@ -114,6 +126,14 @@ def getSin(fc,numPts, cx=False, phase0=0):
         out = [math.sin(fcRad*n) for n in xrange(numPts)]
     return out
 
+def getFiltLen(impulseResponse):
+    last=None
+    for i in xrange(len(impulseResponse)):
+        if abs(impulseResponse[i])>.01:
+            out=last
+        else:
+            last=i
+    return last+1
 
 class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
     """Test for all component implementations in fastfilter"""
@@ -157,6 +177,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         # Launch the component with the default execparams
         execparams = self.getPropertySet(kinds=("execparam",), modes=("readwrite", "writeonly"), includeNil=False)
         execparams = dict([(x.id, any.from_any(x.value)) for x in execparams])
+        execparams['DEBUG_LEVEL']=4
         self.launch(execparams, initialize=True)
         
         #######################################################################
@@ -191,10 +212,45 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
             self.assertEqual(port_obj._non_existent(), False)
             self.assertEqual(port_obj._is_a(port.get_repid()),  True)
   
+    def testBadCfg1(self):
+        """Set with multiple filterProp settings simultaniously and verify we get an error
+        """
+        prop1 =  self.makeFilterProps()
+        prop2 = self.makeCxCoefProps()
+        try:
+            self.comp.configure([prop1,prop2])
+        except CF.PropertySet.InvalidConfiguration:
+            return
+        raise RunTimeError("No error raised in testBadCfg1")
+
+    def testBadCfg2(self):
+        """Set with multiple filterProp settings simultaniously and verify we get an error
+        """
+        prop1 =  self.makeFilterProps()
+        prop2 = self.makeRealCoefProps()
+        try:
+            self.comp.configure([prop1,prop2])
+        except CF.PropertySet.InvalidConfiguration:
+            return
+        raise RunTimeError("No error raised in testBadCfg1") 
+
+    def testBadCfg3(self):
+        """Set with multiple filterProp settings simultaniously and verify we get an error
+        """
+        prop1 =  self.makeCxCoefProps()
+        prop2 = self.makeRealCoefProps()
+        try:
+            self.comp.configure([prop1,prop2])
+        except CF.PropertySet.InvalidConfiguration:
+            return
+        raise RunTimeError("No error raised in testBadCfg1")
+  
     def testReal(self):
+        """ Real Filter real data
+        """
         filter = getSink(.2, 513)
         self.comp.fftSize = 1024
-        self.comp.filterCoefficients = filter
+        self.comp.realFilterCoefficients = filter
         dataA = getSin(.05, 4*513)
         dataB = getSin(.0123, 4*513,phase0=.054)
         #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
@@ -206,11 +262,12 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.assertTrue(all([abs(x-y)<.1 for x,y in zip(outDataSS,inData[0])]))
 
     def testCxFilt(self):
+        """ complex Filter complex data
+        """
         filter = getSink(.2, 513)
-        cxFilter = muxZeros(filter)
         self.comp.fftSize = 1024
         self.comp.filterComplex = True
-        self.comp.filterCoefficients = cxFilter
+        self.comp.complexFilterCoefficients = filter
         dataA = getSin(.05, 4*513)
         dataB = getSin(.0123, 4*513,phase0=.054)
         #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
@@ -224,9 +281,11 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.assertTrue(all([abs(x-y)<.1 for x,y in zip(reSS,inData)]))
 
     def testCxRealFilt(self):
+        """real filter complex data
+        """
         filter = getSink(.2, 513)
         self.comp.fftSize = 1024
-        self.comp.filterCoefficients = filter
+        self.comp.realFilterCoefficients = filter
         dataA = getSin(.05, 4*513)
         dataB = getSin(.0123, 4*513,phase0=.054)
         inData=[x+y for x,y in zip(dataA,dataB)]
@@ -240,11 +299,11 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
 
 
     def testRealCxFilt(self):
+        """complex filter real data
+        """
         filter = getSink(.2, 513)
-        cxFilter = muxZeros(filter)
         self.comp.fftSize = 1024
-        self.comp.filterComplex = True
-        self.comp.filterCoefficients = cxFilter
+        self.comp.complexFilterCoefficients = filter
         dataA = getSin(.05, 4*513)
         dataB = getSin(.0123, 4*513,phase0=.054)
         #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
@@ -256,7 +315,80 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.assertTrue(all([abs(x)<.01 for x in im]))
         self.assertTrue(all([abs(x-y)<.1 for x,y in zip(reSS,inData[0])]))
 
-    def doImpulseResponse(self, sampleRate, validateFft=True):
+    def testRealManualImpulse(self):
+        """use manual configuration (real taps) and ensure that the impulse response matches the response
+        """
+        filter = [random.random() for _ in xrange(513)]
+        self.comp.fftSize = 1024
+        self.comp.realFilterCoefficients = filter
+        self.doImpulseResponse(1e6,filter)    
+
+    def testCxManualImpulse(self):
+        """use manual configuration (complex taps) and ensure that the impulse response matches the response
+        """
+        filter = [complex(random.random(), random.random()) for _ in xrange(513)]
+        self.comp.fftSize = 1024
+        self.comp.complexFilterCoefficients = filter
+        self.doImpulseResponse(1e6,filter) 
+
+    def testRealCorrelation(self):
+        """Put the filter into correlation mode and ensure that it correlates
+        """
+        filter = [random.random() for _ in xrange(513)]
+        self.comp.correlationMode=True
+        self.comp.fftSize = 1024
+        self.comp.realFilterCoefficients = filter
+        data = [random.random() for _ in range(int(self.comp.fftSize)/2)]
+        outExpected = scipyCorl(filter,data)
+        data.extend([0]*(self.comp.fftSize))
+        self.main([data],False,1e6)
+        self.cmpList(outExpected,self.output[:len(outExpected)])
+
+
+    def testCxCorrelation(self):
+        """Put the filter into correlation mode and ensure that it correlates with cx data and coeficients
+        """
+        filter = [complex(random.random(),random.random()) for _ in xrange(513)]
+        self.comp.correlationMode=True
+        self.comp.fftSize = 1024
+        self.comp.complexFilterCoefficients = filter
+        data = [random.random() for _ in range(int(self.comp.fftSize))]
+        dataCx = toCx(data)
+        outExpected =  scipyCorl(filter,dataCx)
+        data.extend([0]*(int(2*self.comp.fftSize)))
+        self.main([data],True,1e6)
+        self.cmpList(outExpected,self.output[:len(outExpected)])         
+
+    def testCxRealCorrelation(self):
+        """real filter complex data for correlation
+        """
+        filter = [random.random() for _ in xrange(513)]
+        self.comp.correlationMode=True
+        self.comp.fftSize = 1024
+        self.comp.realFilterCoefficients = filter
+        data = [random.random() for _ in range(int(self.comp.fftSize))]
+        dataCx = toCx(data)
+        outExpected =  scipyCorl(filter,dataCx)
+        data.extend([0]*(self.comp.fftSize))
+        self.main([data],True,1e6)
+        self.cmpList(outExpected,self.output[:len(outExpected)])
+
+
+    def testRealCxCorrelation(self):
+        """complex filter real data
+        """
+        filter = [complex(random.random(),random.random()) for _ in xrange(513)]
+        self.comp.correlationMode=True
+        self.comp.fftSize = 1024
+        self.comp.complexFilterCoefficients = filter
+        
+        data = [random.random() for _ in range(int(self.comp.fftSize)/2)]
+        outExpected = scipyCorl(filter,data)
+        data.extend([0]*(self.comp.fftSize))
+        self.main([data],False,1e6)
+        self.cmpList(outExpected,self.output[:len(outExpected)])
+
+    def doImpulseResponse(self, sampleRate, validate=True):
         #create an input with all zeros except an initial value of 1 to get the filter impulse response
         data = [0]*int(self.comp.fftSize*1.5)
         data[0]=1
@@ -265,7 +397,10 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.main([data],False,sampleRate)
 
         #validate the response
-        self.validateImpulseResponse(validateFft)
+        if validate==True:
+            self.validateImpulseResponse()
+        elif isinstance(validate,list):
+            self.cmpList(validate,self.output[:len(validate)])
 
     def cmpList(self,a,b):
         if isinstance(b, list):
@@ -274,15 +409,25 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         else:
             self.assertTrue(all([abs(x-b)<.01 for x in a]))
     
-    def setFilterProps(self, tw=400, filterType='lowpass', ripple=0.01, freq1=1000.0, freq2=2000.0):
+    def makeCxCoefProps(self):
+        return ossie.cf.CF.DataType(id='complexFilterCoefficients', value=CORBA.Any(CORBA.TypeCode("IDL:CF/complexFloatSeq:1.0"), []))
+
+    def makeRealCoefProps(self):
+        return ossie.cf.CF.DataType(id='realFilterCoefficients', value=CORBA.Any(CORBA.TypeCode("IDL:omg.org/CORBA/FloatSeq:1.0"), []))
+    
+    def makeFilterProps(self, tw=400, filterType='lowpass', ripple=0.01, freq1=1000.0, freq2=2000.0,cx=False):
         """set the filter properties on the component
         """
-        prop = ossie.cf.CF.DataType(id='filterProps', value=CORBA.Any(CORBA.TypeCode("IDL:CF/Properties:1.0"), [ossie.cf.CF.DataType(id='TransitionWidth', value=CORBA.Any(CORBA.TC_double, tw)), 
+        return ossie.cf.CF.DataType(id='filterProps', value=CORBA.Any(CORBA.TypeCode("IDL:CF/Properties:1.0"), [ossie.cf.CF.DataType(id='TransitionWidth', value=CORBA.Any(CORBA.TC_double, tw)), 
                                                                                                                 ossie.cf.CF.DataType(id='Type', value=CORBA.Any(CORBA.TC_string, filterType)), 
                                                                                                                 ossie.cf.CF.DataType(id='Ripple', value=CORBA.Any(CORBA.TC_double, ripple)), 
                                                                                                                 ossie.cf.CF.DataType(id='freq1', value=CORBA.Any(CORBA.TC_double, freq1)), 
-                                                                                                                ossie.cf.CF.DataType(id='freq2', value=CORBA.Any(CORBA.TC_double, freq2))]))
-        self.comp.configure([prop])
+                                                                                                                ossie.cf.CF.DataType(id='freq2', value=CORBA.Any(CORBA.TC_double, freq2)),
+                                                                                                                ossie.cf.CF.DataType(id='filterComplex', value=CORBA.Any(CORBA.TC_boolean, cx))
+                                                                                                                ]))
+    def setFilterProps(self, *args, **keys):
+        filtProp = self.makeFilterProps(*args, **keys)
+        self.comp.configure([filtProp])
 
     def getFilterProps(self):
         """ get the filter properties from the component
@@ -305,6 +450,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         filterType = 'lowpass'
         self.setFilterProps(filterType=filterType, tw=10)
         fs = 10000
+        #note - set validate to false because our filter props are impossible to meet and we cannot pass validation
         self.doImpulseResponse(fs, False)
         if DISPLAY:
             plotFft(self.output, 1024, fs)
@@ -319,7 +465,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         if DISPLAY:
             plotFft(self.output, 1024, fs)
 
-    def testHighPass(self):
+    def testHighPpass(self):
         filterType = 'highpass'
         self.setFilterProps(filterType=filterType)
         fs = 10000
@@ -327,93 +473,87 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         if DISPLAY:
             plotFft(self.output, 1024, fs)
 
-    def testBandPass(self):
+    def testBandpass(self):
         filterType = 'bandpass'
         self.setFilterProps(filterType=filterType)
         fs = 10000
         self.doImpulseResponse(fs)
         if DISPLAY:
-            plotFft(self.comp.filterCoefficients, 1024, fs)
+            plotFft(self.output, 1024, fs)
 
-    def testBandStop(self):
+    def testBandstop(self):
         filterType = 'bandstop'
         self.setFilterProps(filterType=filterType)
         fs = 10000
         self.doImpulseResponse(fs)
         if DISPLAY:
-            plotFft(self.comp.filterCoefficients, 1024, fs)
+            plotFft(self.output, 1024, fs)
 
 
     def testLowpassCx(self):
         filterType = 'lowpass'
-        self.setFilterProps(filterType=filterType)
-        self.comp.filterComplex=True
+        self.setFilterProps(filterType=filterType, cx=True)
         fs = 10000
         self.doImpulseResponse(fs)
         if DISPLAY:
             plotFft(self.output, 16*1024, fs)
 
-    def testHighPassCx(self):
+    def testHighpassCx(self):
         filterType = 'highpass'
-        self.setFilterProps(filterType=filterType)
-        self.comp.filterComplex=True
+        self.setFilterProps(filterType=filterType,cx=True)
         fs = 10000
         self.doImpulseResponse(fs)
         if DISPLAY:
             plotFft(self.output, 1024, fs)
 
-    def testBandPassCx(self):
+    def testBandpassCx(self):
         filterType = 'bandpass'
-        self.setFilterProps(filterType=filterType)
+        self.setFilterProps(filterType=filterType,cx=True)
         self.comp.filterComplex=True
         fs = 10000
         self.doImpulseResponse(fs)
         if DISPLAY:
             plotFft(self.output, 16*1024, fs)
 
-    def testBandPassCx2(self):
+    def testBandpassCx2(self):
         """use negative frequencies only for complex filtering
         """
         filterType = 'bandpass'
-        self.setFilterProps(filterType=filterType, freq1=-1000.0, freq2=-2000.0)
-        self.comp.filterComplex=True
+        self.setFilterProps(filterType=filterType, freq1=-1000.0, freq2=-2000.0,cx=True)
         fs = 10000
         self.doImpulseResponse(fs)
         if DISPLAY:
             plotFft(self.output, 16*1024, fs)
 
-    def testBandPassCx3(self):
+    def testBandpassCx3(self):
         """Use negative frequencies only but "reverse" f1 and f2
         """
         filterType = 'bandpass'
-        self.setFilterProps(filterType=filterType, freq1=-2000.0, freq2=-1000.0)
-        self.comp.filterComplex=True
+        self.setFilterProps(filterType=filterType, freq1=-2000.0, freq2=-1000.0,cx=True)
         fs = 10000
         self.doImpulseResponse(fs)
         if DISPLAY:
             plotFft(self.output, 16*1024, fs)
     
-    def testBandPassCx4(self):
+    def testBandpassCx4(self):
         """use a complex fitler which spans d.c - its lower frequency is negative but its upper is postiive
         """
         filterType = 'bandpass'
-        self.setFilterProps(filterType=filterType, freq1=-1000.0, freq2=2000.0)
-        self.comp.filterComplex=True
+        self.setFilterProps(filterType=filterType, freq1=-1000.0, freq2=2000.0,cx=True)
         fs = 10000
         self.doImpulseResponse(fs)
         if DISPLAY:
             plotFft(self.output, 16*1024, fs)
 
-    def testBandStopCx(self):
+    def testBandstopCx(self):
         filterType = 'bandstop'
-        self.setFilterProps(filterType=filterType)
-        self.comp.filterComplex=True
+        self.setFilterProps(filterType=filterType,cx=True)
         fs = 10000
         self.doImpulseResponse(fs)
         if DISPLAY:
             plotFft(self.output, 1024, fs)
 
-    def eos(self):
+    def testeos(self):
         """ensure sending eos clears out the data appropriately
         """
         self.comp.fftSize = 1024
@@ -433,89 +573,105 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         if DISPLAY:
             plotFft(self.output, 1024, fs)
 
-    def validateImpulseResponse(self, validateFft):        
-        filtLen = len(self.comp.filterCoefficients)
-        cxTaps = self.comp.filterComplex
-        if cxTaps:
-            filtLen/=2
-            coeffs = toCx(self.comp.filterCoefficients)
-        else:
-            coeffs = list(self.comp.filterCoefficients)
+    def testSRChange(self):
+        filterType = 'lowpass'
+        self.setFilterProps(filterType=filterType)
+        fs = 10000
+        self.doImpulseResponse(fs)
+        self.output=[]
+        fs = 2500
+        self.doImpulseResponse(fs)
 
-        #verify we have enough data
-        self.assertTrue(len(self.output)>= len(coeffs))
-        #verify the impulse response out of the filter is equal to the filter taps
-        self.assertTrue(all([abs(x-y) < .01 for x, y in zip(self.output, coeffs)]))
-        self.assertTrue(all([abs(x)<.01 for x in self.output[filtLen:]]))
+    def testMultistream(self):
+        """ensure sending eos clears out the data appropriately
+        """
+        self.comp.fftSize = 1024
+        filterType = 'lowpass'
+        self.setFilterProps(filterType=filterType)
+                         
+        #run data through the filter to get state in there  
+        dataA = getSin(.05, 4*513)
+        dataB = getSin(.0123, 4*513,phase0=.054)
+        #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
+        inData=[[x+y for x,y in zip(dataA,dataB)]]
+        self.main(inData, streamID ='streamA')
+        self.output = []
         
-        if validateFft:
-            #take the fft of the fitler taps and validate the passband/stopband 
-            #regions are correct for the given filter specifications
-            fftSize = int(2**(math.ceil(math.log(filtLen,2))+1))
-            fs = 1.0/self.sink.sri().xdelta
-            fIn =scipy.fftpack.fft(coeffs,fftSize)
-            freqsIn = scipy.fftpack.fftfreq(fftSize,1.0/fs)
-    
-            #get the filter properties
-            filterProps = self.getFilterProps()
-            filterType = filterProps['Type']
-            tol = filterProps['TransitionWidth']
-            ripple=filterProps['Ripple']
-            f1 = filterProps['freq1']
-            f2 = filterProps['freq2']
-            delta = tol #technically this should be tol*.5 but we have a little grace in our calculations
-            
-            #build up the passband/stopband regions per the filter specs
-            if filterType == 'lowpass':
-                passband = [(-f1+delta, f1-delta)]
-                stopband = [(-fs/2.0,-f1-delta), (f1+delta, fs/2.0)]
-            elif filterType == 'highpass':
-                stopband = [(-f1+delta, f1-delta)]
-                passband = [(-fs/2.0,-f1-delta), (f1+delta, fs/2.0)]
-            else: #bandpass or stopband
-                l = [f1, f2]
-                l.sort()
-                fl, fh = l 
-                if filterType == 'bandpass':
-                    if cxTaps:
-                       passband = [(fl+delta, fh-delta)]
-                       stopband = [(-fs/2.0,fl-delta), (fh+delta, fs/2.0)]
-                    else:
-                       passband = [(-fh+delta, -fl-delta), (fl+delta, fh-delta)]
-                       stopband = [(-fs/2.0,-fh-delta), (-fl+delta,fl-delta), (fh+delta, fs/2.0)]
+        fs = 10000
+        self.doImpulseResponse(fs)
+        if DISPLAY:
+            plotFft(self.output, 1024, fs)
+
+    def validateImpulseResponse(self):        
+        
+        #take the fft of the fitler taps and validate the passband/stopband 
+        #regions are correct for the given filter specifications
+        filtLen = getFiltLen(self.output)
+        fftSize = int(2**(math.ceil(math.log(filtLen,2))+1))
+        fs = 1.0/self.sink.sri().xdelta
+        fIn =scipy.fftpack.fft(self.output,fftSize)
+        freqsIn = scipy.fftpack.fftfreq(fftSize,1.0/fs)
+
+        #get the filter properties
+        filterProps = self.getFilterProps()
+        filterType = filterProps['Type']
+        tol = filterProps['TransitionWidth']
+        ripple=filterProps['Ripple']
+        f1 = filterProps['freq1']
+        f2 = filterProps['freq2']
+        delta = tol #technically this should be tol*.5 but we have a little grace in our calculations
+        
+        #build up the passband/stopband regions per the filter specs
+        if filterType == 'lowpass':
+            passband = [(-f1+delta, f1-delta)]
+            stopband = [(-fs/2.0,-f1-delta), (f1+delta, fs/2.0)]
+        elif filterType == 'highpass':
+            stopband = [(-f1+delta, f1-delta)]
+            passband = [(-fs/2.0,-f1-delta), (f1+delta, fs/2.0)]
+        else: #bandpass or stopband
+            l = [f1, f2]
+            l.sort()
+            fl, fh = l 
+            if filterType == 'bandpass':
+                if self.outputCmplx:
+                   passband = [(fl+delta, fh-delta)]
+                   stopband = [(-fs/2.0,fl-delta), (fh+delta, fs/2.0)]
                 else:
-                    if cxTaps:
-                       stopband = [(fl+delta, fh-delta)]
-                       passband = [(-fs/2.0,fl-delta), (fh+delta, fs/2.0)]
-                    else:
-                       stopband = [(-fh+delta, -fl-delta), (fl+delta, fh-delta)]
-                       passband = [(-fs/2.0,-fh-delta), (-fl+delta,fl-delta), (fh+delta, fs/2.0)]
-    
-            for freq, val in zip(freqsIn, fIn):
-                #for each fft value/frequency - if in passband or stopband ensure the value is correct
-                inPassband = False
-                for fmin, fmax in passband:
+                   passband = [(-fh+delta, -fl-delta), (fl+delta, fh-delta)]
+                   stopband = [(-fs/2.0,-fh-delta), (-fl+delta,fl-delta), (fh+delta, fs/2.0)]
+            else:
+                if self.outputCmplx:
+                   stopband = [(fl+delta, fh-delta)]
+                   passband = [(-fs/2.0,fl-delta), (fh+delta, fs/2.0)]
+                else:
+                   stopband = [(-fh+delta, -fl-delta), (fl+delta, fh-delta)]
+                   passband = [(-fs/2.0,-fh-delta), (-fl+delta,fl-delta), (fh+delta, fs/2.0)]
+
+        for freq, val in zip(freqsIn, fIn):
+            #for each fft value/frequency - if in passband or stopband ensure the value is correct
+            inPassband = False
+            for fmin, fmax in passband:
+                if fmin<=freq<=fmax:
+                    #print "pb, freq = ", freq, "val = ", val, "1.- abs(val) = ", 1.0-abs(val), "ripple = ", ripple
+                    self.assertTrue(1.0-abs(val)<ripple)
+                    inPassband = True
+                    break
+            if not inPassband:
+                for fmin, fmax in stopband:
                     if fmin<=freq<=fmax:
-                        #print "pb, freq = ", freq, "val = ", val, "1.- abs(val) = ", 1.0-abs(val), "ripple = ", ripple
-                        self.assertTrue(1.0-abs(val)<ripple)
-                        inPassband = True
+                        #print "sb, freq = ", freq, "val = ", val, "abs(val) = ", abs(val), "ripple = ", ripple
+                        self.assertTrue(abs(val)<ripple)
                         break
-                if not inPassband:
-                    for fmin, fmax in stopband:
-                        if fmin<=freq<=fmax:
-                            #print "sb, freq = ", freq, "val = ", val, "abs(val) = ", abs(val), "ripple = ", ripple
-                            self.assertTrue(abs(val)<ripple)
-                            break
     
         
-    def main(self, inData, dataCx=False, sampleRate=1.0, eos=False):    
+    def main(self, inData, dataCx=False, sampleRate=1.0, eos=False,streamID='test_stream'):    
         count=0
         lastPktIndex = len(inData)-1
         for i, data in enumerate(inData):
             #just to mix things up I'm going to push through in two stages
             #to ensure the filter is working properly with its state
             EOS = eos and i == lastPktIndex
-            self.src.push(data,complexData=dataCx, sampleRate=sampleRate, EOS=EOS)
+            self.src.push(data,complexData=dataCx, sampleRate=sampleRate, EOS=EOS,streamID=streamID)
         while True:
             newData = self.sink.getData()
             if newData:

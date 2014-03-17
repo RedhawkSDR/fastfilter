@@ -122,8 +122,9 @@ class fastfilter_base : public Resource_impl
 
         // Member variables exposed as properties
         CORBA::ULong fftSize;
-        bool filterComplex;
-        std::vector<float> filterCoefficients;
+        bool correlationMode;
+        std::vector<float> realFilterCoefficients;
+        std::vector<std::complex<float> > complexFilterCoefficients;
         filterProps_struct filterProps;
 
         // Ports

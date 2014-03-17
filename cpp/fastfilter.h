@@ -8,6 +8,43 @@
 
 class fastfilter_i;
 
+class FilterWrapper
+{
+	public:
+		FilterWrapper() :
+			filter(NULL),
+			fs_(1.0)
+		{
+		}
+		~FilterWrapper()
+		{
+			if (filter!=NULL)
+				delete filter;
+		}
+		void setParams(float sampleRate, firfilter* filter)
+		{
+			this->filter =filter;
+			fs_ = sampleRate;
+		}
+		bool hasSampleRateChanged(float sampleRate)
+		{
+			bool ret(false);
+			if (fs_ != sampleRate)
+			{
+				ret=true;
+				fs_=sampleRate;
+			}
+			return ret;
+		}
+		float getSampleRate()
+		{
+			return fs_;
+		}
+		firfilter* filter;
+	private:
+		float fs_;
+};
+
 class fastfilter_i : public fastfilter_base
 {
     ENABLE_LOGGING
@@ -16,29 +53,38 @@ class fastfilter_i : public fastfilter_base
         ~fastfilter_i();
         int serviceFunction();
 
+        void configure (const CF::Properties& configProperties)
+            throw (CF::PropertySet::PartialConfiguration,
+                   CF::PropertySet::InvalidConfiguration, CORBA::SystemException);
+
     private:
 
-        firfilter::realVector realIn;
-        firfilter::complexVector complexIn;
+        typedef std::map<std::string, FilterWrapper> map_type;
+   		map_type filters_;
+
         firfilter::realVector realOut;
         firfilter::complexVector complexOut;
 
-        firfilter::realVector complexOutAsReal;
-        firfilter filter_;
-
-        //internal helper function
-        void cxOutputToReal();
         void fftSizeChanged(const std::string& id);
-        void filterCoefficientsChanged(const std::string& id);
-        void filterComplexChanged(const std::string& id);
+        void realFilterCoefficientsChanged(const std::string& id);
+        void complexFilterCoefficientsChanged(const std::string& id);
         void filterPropsChanged(const std::string& id);
+        void correlationModeChanged(const std::string& id);
+
+        void getManualTaps(bool& doReal, bool& doComplex);
+        template<typename T, typename U>
+        void getManualTapsTemplate(T& in, U& out);
+        template<typename T>
+        void designTaps(T& taps, float sampleRate);
+        void validateFftSize(size_t numTaps);
+
         FirFilterDesigner filterdesigner_;
-        float fs_;
         bool manualTaps_;
-        std::string streamID_;
-        bool updateFFT_;
-        bool updateFilter_;
-        boost::mutex filterDesignLock_;
+
+        RealFFTWVector realTaps_;
+        ComplexFFTWVector complexTaps_;
+
+        boost::mutex filterLock_;
 };
 
 #endif
