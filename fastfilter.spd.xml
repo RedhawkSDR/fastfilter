@@ -22,7 +22,14 @@ program.  If not, see http://www.gnu.org/licenses/.
   <author>
     <name>null</name>
   </author>
-  <description>fastfilter is an FIR filter implementation using the FFT-based overlap-add technique.  This component includes a filter designer which aids in impulse response creation for lowpass, highpass, bandpass, and bandstop filters.  It accepts custom impulse responses via property configuration.</description>
+  <description>fastfilter is an FIR filter implementation using the FFT-based overlap-add technique.  
+
+There are three use cases for this component depending upon how it is configured:
+1.  Component configured via property &quot;realFilterCoefficients&quot; or &quot;complexFilterCoefficients&quot; with &quot;correlationMode&quot; set to false.  This provides filtering via the typical convolution algorthim using the filter coefficients provided.  
+2.  Component configured via property &quot;realFilterCoefficients&quot; or &quot;complexFilterCoefficients&quot; with &quot;correlationMode&quot; set to true.  This time correlates against the coeficients provided by reversing the coeficients and filtering.
+3.    Component configured via &quot;filterProps&quot;.  This clears the properties &quot;complexFilterCoefficients&quot; and &quot;realFilterCoefficients&quot;.  The component proceedes to design a set of filter coeficients acording to the values of &quot;filterProps&quot;.  In addition &quot;doCorrelation&quot; is set to false since it doesn't make sense to perform correlation with taps produced via coeficient specification.
+
+It is important to note that use cases 1 &amp; 2 use the same filter coeficients regardless of sample rate.  Use case 3 designs a seperate filter for each streamID depending upon its sample rate.</description>
   <propertyfile type="PRF">
     <localfile name="fastfilter.prf.xml"/>
   </propertyfile>

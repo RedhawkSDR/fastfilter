@@ -31,16 +31,13 @@ PREPARE_LOGGING(fastfilter_i)
 
 fastfilter_i::fastfilter_i(const char *uuid, const char *label) :
     fastfilter_base(uuid, label),
-    filter_(fftSize, realIn, complexIn, realOut, complexOut),
-    fs_(-1.0),
-    manualTaps_(true),
-    updateFFT_(false),
-    updateFilter_(false)
+    manualTaps_(false)
 {
 	setPropertyChangeListener("fftSize", this, &fastfilter_i::fftSizeChanged);
-	setPropertyChangeListener("filterComplex", this, &fastfilter_i::filterComplexChanged);
-	setPropertyChangeListener("filterCoefficients", this, &fastfilter_i::filterCoefficientsChanged);
+	setPropertyChangeListener("realFilterCoefficients", this, &fastfilter_i::realFilterCoefficientsChanged);
+	setPropertyChangeListener("complexFilterCoefficients", this, &fastfilter_i::complexFilterCoefficientsChanged);
 	setPropertyChangeListener("filterProps", this, &fastfilter_i::filterPropsChanged);
+	setPropertyChangeListener("correlationMode", this, &fastfilter_i::correlationModeChanged);
 }
 
 fastfilter_i::~fastfilter_i()
@@ -180,175 +177,325 @@ fastfilter_i::~fastfilter_i()
 ************************************************************************************************/
 int fastfilter_i::serviceFunction()
 {
-    LOG_DEBUG(fastfilter_i, "serviceFunction() example log message");
-
     bulkio::InFloatPort::dataTransfer *tmp = dataFloat_in->getPacket(bulkio::Const::BLOCKING);
 	if (not tmp) { // No data is available
 		return NOOP;
 	}
+
 	if (tmp->inputQueueFlushed)
 	{
 		LOG_WARN(fastfilter_i, "input queue flushed - data has been thrown on the floor.  flushing internal buffers");
 		//flush all our processor states if the queue flushed
-		filter_.flush();
+		boost::mutex::scoped_lock lock(filterLock_);
+		for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+			i->second.filter->flush();
 	}
-	std::string thisStreamID(tmp->SRI.streamID);
-    if (!streamID_.empty() && (thisStreamID != streamID_))
-    {
-    	LOG_ERROR(fastfilter_i, "sri streamID "<<tmp->SRI.streamID<< " not equal to working streamID "<< streamID_<<".  Current processing allows only a single streamID.  This data will be thrown on the floor");
-    	delete tmp;
-    	return NORMAL;
-    }
-	bool forceSriPush = false;
-    if (streamID_.empty() || tmp->sriChanged)
-	{
-		streamID_ = thisStreamID;
-		forceSriPush=true;
-	}
-    //check to see if we need to update the filter state
-    if (updateFFT_)
-    {
-    	filter_.setFftSize(fftSize);
-    	updateFFT_=false;
-    }
+	bool updateSRI = tmp->sriChanged;
     float fs = 1.0/tmp->SRI.xdelta;
-	//on sample rate changes we must redesign the filter if we are not in manual taps mode
-    if (fs !=fs_)
 	{
-		fs_ =fs;
-		if (!manualTaps_)
+		boost::mutex::scoped_lock lock(filterLock_);
+		map_type::iterator i = filters_.find(tmp->streamID);
+		firfilter* filter;
+		if (i==filters_.end())
 		{
-			//need to redesign our filter if the sampling rate has changed
-			filterPropsChanged("");
+			//this is a new stream - need to create a new filter & wrapper
+			LOG_DEBUG(fastfilter_i, "creating new filter for streamID "<<tmp->streamID);
+			if (manualTaps_)
+			{
+				LOG_DEBUG(fastfilter_i, "using manual taps ");
+				bool real, complex;
+				getManualTaps(real,complex);
+				if (real)
+					filter = new firfilter(fftSize, realOut, complexOut, realTaps_);
+				else if(complex)
+					filter = new firfilter(fftSize, realOut, complexOut, complexTaps_);
+				else
+				{
+					LOG_WARN(fastfilter_i, "state error - using manual taps with no filter provided.  This shouldn't really happen");
+					if (updateSRI)
+						dataFloat_out->pushSRI(tmp->SRI);
+					dataFloat_out->pushPacket(tmp->dataBuffer, tmp->T, tmp->EOS, tmp->streamID);
+					delete tmp;
+					return NORMAL;
+				}
+				updateSRI = true;
+			}
+			else
+			{
+				LOG_DEBUG(fastfilter_i, "using filter designer");
+				correlationMode=false;
+				if (filterProps.filterComplex)
+				{
+					designTaps(complexTaps_, fs);
+					filter = new firfilter(fftSize, realOut, complexOut, complexTaps_);
+				}
+				else
+				{
+					designTaps(realTaps_, fs);
+					filter = new firfilter(fftSize, realOut, complexOut, realTaps_);
+				}
+			}
+			map_type::value_type filterWrapperMap(tmp->streamID, FilterWrapper());
+			i = filters_.insert(filters_.end(),filterWrapperMap);
+			i->second.setParams(fs,filter);
 		}
+		else
+			//get the filter we have used before
+			filter = i->second.filter;
+
+		//if we are in design mode and the sample rate has changed - redesign and apply our filter
+		if (!manualTaps_ && i->second.hasSampleRateChanged(fs))
+		{
+			if (filterProps.filterComplex)
+			{
+				designTaps(complexTaps_, fs);
+				filter->setTaps(complexTaps_);
+			}
+			else
+			{
+				designTaps(realTaps_, fs);
+				filter->setTaps(realTaps_);
+			}
+		}
+
+		//now process the data
+		if (tmp->SRI.mode==1)
+		{
+			//data is complex
+			//run the filter
+			std::vector<std::complex<float> >* cxData = (std::vector<std::complex<float> >*) &(tmp->dataBuffer);
+			filter->newComplexData(*cxData);
+		}
+		else
+		{
+			//data is real
+			//run the filter
+			filter->newRealData(tmp->dataBuffer);
+			//we might have a single complex frame if the previous data was complex and there were
+			//complex data still in the filter taps
+			if (!complexOut.empty())
+			{
+				//update the mode to true for the complex fame and force an sri push
+				tmp->SRI.mode=1;
+				updateSRI = true;
+			}
+		}
+	    if (tmp->EOS)
+	    {
+	    	//if we have an eos - remove the wrapper from the container
+	    	filters_.erase(i);
+	    }
 	}
-
-    if (updateFilter_)
-    {
-    	//apply whatever is in the filterCoefficients to the filter - doesn't matter if they got done via manual configuraiton or designer
-        if (filterComplex)
-        {
-        	ComplexFFTWVector taps(filterCoefficients.size()/2);
-        	for (size_t i =0; i!=taps.size(); i++)
-        	{
-        		taps[i] = std::complex<float>(filterCoefficients[2*i], filterCoefficients[2*i+1]);
-        	}
-        	filter_.setTaps(taps);
-        }
-        else
-        {
-        	RealFFTWVector taps(filterCoefficients.size());
-        	copy(filterCoefficients.begin(), filterCoefficients.end(), taps.begin());
-        	filter_.setTaps(taps);
-        }
-        updateFilter_=false;
-    }
-
-    //now process the data
-    if (tmp->SRI.mode==1)
-    {
-        //data is complex
-    	//unpack the data into a complex vector
-    	complexIn.resize(tmp->dataBuffer.size()/2);
-    	for (size_t i=0; i!= complexIn.size(); i++)
-    	{
-    		complexIn[i] = std::complex<float>(tmp->dataBuffer[2*i], tmp->dataBuffer[2*i+1]);
-    	}
-    	//run the filter
-    	filter_.newComplexData();
-    	//demux the complex vector to our real output vector
-    	cxOutputToReal();
-    }
-    else
-    {
-        //data is real
-    	//asign the new vector becaus of the allocator issue - it is just easier to copy the data
-    	realIn.assign(tmp->dataBuffer.begin(), tmp->dataBuffer.end());
-    	//filter the data
-    	filter_.newRealData();
-    	//we might have a single complex frame if the previous data was complex and there were
-    	//complex data still in the filter taps
-    	if (!complexOut.empty())
-    	{
-    		tmp->SRI.mode=1;
-    		cxOutputToReal();
-    		forceSriPush = true;
-    	}
-    }
 
 	//to do -- adjust time stamps appropriately on all these output pushes
     // NOTE: You must make at least one valid pushSRI call
-    if (tmp->sriChanged || forceSriPush) {
+    if (updateSRI) {
     	dataFloat_out->pushSRI(tmp->SRI);
     }
-    if (!complexOutAsReal.empty())
+    if (!complexOut.empty())
     {
-    	dataFloat_out->pushPacket(complexOutAsReal, tmp->T, tmp->EOS, tmp->streamID);
-    	complexOutAsReal.clear();
+    	std::vector<float>* tmpRealOut = (std::vector<float>*) &(complexOut);
+    	dataFloat_out->pushPacket(*tmpRealOut, tmp->T, tmp->EOS, tmp->streamID);
     }
     if (!realOut.empty())
     {
-    	if (forceSriPush && tmp->SRI.mode==1)
+    	//case we we forced a push on real data from previous complex data
+    	//need to force our sri back to real and push another sri
+    	if (updateSRI && tmp->SRI.mode==1)
     	{
     		//change mode back to 0 and send another sri with our real output
     		tmp->SRI.mode=0;
     		dataFloat_out->pushSRI(tmp->SRI);
     	}
     	dataFloat_out->pushPacket(realOut, tmp->T, tmp->EOS, tmp->streamID);
-    	realOut.clear();
-    }
-    if (tmp->EOS)
-    {
-    	//reset our state so we can process new streamIDs
-    	streamID_="";
-    	fs_ = -1.0;
-    	filter_.flush();
     }
     delete tmp; // IMPORTANT: MUST RELEASE THE RECEIVED DATA BLOCK
     return NORMAL;
 }
 
-void fastfilter_i::cxOutputToReal()
+void fastfilter_i::configure (const CF::Properties& configProperties)
+	throw (CF::PropertySet::PartialConfiguration,
+           CF::PropertySet::InvalidConfiguration, CORBA::SystemException)
 {
-	complexOutAsReal.resize(complexOut.size()*2);
-	for (size_t i=0; i!= complexOut.size(); i++)
+	if (started())
 	{
-		complexOutAsReal[2*i] = complexOut[i].real();
-		complexOutAsReal[2*i+1] = complexOut[i].imag();
+		size_t filtProps=0;
+		for (unsigned int index = 0; index < configProperties.length(); ++index)
+		{
+			if (strcmp(configProperties[index].id,"realFilterCoefficients")==0)
+				filtProps++;
+			else if (strcmp(configProperties[index].id,"complexFilterCoefficients")==0)
+				filtProps++;
+			else if (strcmp(configProperties[index].id,"filterProps")==0)
+				filtProps++;
+		}
+		if (filtProps > 1)
+		{
+			LOG_ERROR(fastfilter_i,"cannot configure multiple combinations of real coeficients cx coeficients and filterProps simultaniously");
+			throw CF::PropertySet::InvalidConfiguration("cannot configure multiple combinations of real coeficients cx coeficients and filterProps simultaniously", configProperties);
+		}
 	}
-	complexOut.clear();
+	fastfilter_base::configure(configProperties);
 }
 
 //HERE ARE all the filter callbacks
 
 void fastfilter_i::fftSizeChanged(const std::string& id)
 {
-	//set the flag to update the filter FFT next processing loop
-	updateFFT_=true;
+	boost::mutex::scoped_lock lock(filterLock_);
+	if (!filters_.empty())
+	{
+		size_t maxNumTaps=0;
+		for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+		{
+			if (i->second.filter->getNumTaps()> maxNumTaps)
+				maxNumTaps=i->second.filter->getNumTaps();
+		}
+		validateFftSize(maxNumTaps);
+		for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+			i->second.filter->setFftSize(fftSize);
+	}
 }
 
-void fastfilter_i::filterCoefficientsChanged(const std::string& id)
+void fastfilter_i::realFilterCoefficientsChanged(const std::string& id)
 {
 	//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
-	manualTaps_=true;
-	updateFilter_=true;
+	boost::mutex::scoped_lock lock(filterLock_);
+	if (!realFilterCoefficients.empty())
+	{
+		manualTaps_=true;
+		complexFilterCoefficients.clear();
+		if (!filters_.empty())
+		{
+			getManualTapsTemplate(realFilterCoefficients, realTaps_);
+			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+			{
+				i->second.filter->setTaps(realTaps_);
+			}
+		}
+	}
+	else
+	{
+		LOG_WARN(fastfilter_i, "Ignoring empty configure for realFilterCoefficients -- to clear this setting configure complexFilterCoefficients or filterProps")
+	}
 }
-void fastfilter_i::filterComplexChanged(const std::string& id)
+void fastfilter_i::complexFilterCoefficientsChanged(const std::string& id)
 {
-	//recalculate if user has configured filter properties and used an internal filter designer
-	//with different complexity
-	if (!manualTaps_)
-		filterPropsChanged(id);
-	updateFilter_=true;
+	//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
+	boost::mutex::scoped_lock lock(filterLock_);
+	if (!complexFilterCoefficients.empty())
+	{
+		manualTaps_=true;
+		realFilterCoefficients.clear();
+		if ( !filters_.empty())
+		{
+			getManualTapsTemplate(complexFilterCoefficients, complexTaps_);
+			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+				i->second.filter->setTaps(complexTaps_);
+		}
+	}
 }
-
 
 void fastfilter_i::filterPropsChanged(const std::string& id)
 {
-	//this could be called via property trigger or via sample rate change in the main loop
-	//put a lock here to be on the safe side
+	boost::mutex::scoped_lock lock(filterLock_);
+	realFilterCoefficients.clear();
+	complexFilterCoefficients.clear();
+	correlationMode=false;
+	manualTaps_=false;
+	if (!filters_.empty())
+	{
+		if (filterProps.filterComplex)
+		{
+			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+			{
+				designTaps(complexTaps_, i->second.getSampleRate());
+				i->second.filter->setTaps(complexTaps_);
+			}
+		}
+		else
+		{
+			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+			{
+				designTaps(realTaps_, i->second.getSampleRate());
+				i->second.filter->setTaps(realTaps_);
+			}
+		}
+	}
+}
 
-	boost::mutex::scoped_lock lock(filterDesignLock_);
+void fastfilter_i::correlationModeChanged(const std::string& id)
+{
+	//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
+	boost::mutex::scoped_lock lock(filterLock_);
+	if (correlationMode)
+		manualTaps_=true;
+	bool real, complex;
+	if (! filters_.empty())
+	{
+		getManualTaps(real,complex);
+		if (real)
+		{
+			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+				i->second.filter->setTaps(realTaps_);
+		} else if (complex)
+		{
+			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+				i->second.filter->setTaps(complexTaps_);
+		}
+	}
+}
+
+void fastfilter_i::getManualTaps(bool& doReal, bool& doComplex)
+{
+	if (!realFilterCoefficients.empty())
+	{
+		getManualTapsTemplate(realFilterCoefficients, realTaps_);
+		doReal=true;
+		doComplex=false;
+	}
+	else if(!complexFilterCoefficients.empty())
+	{
+		getManualTapsTemplate(complexFilterCoefficients, complexTaps_);
+		doReal=false;
+		doComplex=true;
+	}
+	else
+	{
+		doReal=false;
+		doComplex=false;
+		LOG_ERROR(fastfilter_i, "manual mode but no real or complex coeficients - no impulse response so we are done here");
+	}
+}
+
+template<typename T, typename U>
+void fastfilter_i::getManualTapsTemplate(T& in, U& out)
+{
+	validateFftSize(in.size());
+	if (correlationMode)
+	{
+		//reverse the taps here
+		LOG_DEBUG(fastfilter_i, "doing correlationMode - swapping taps!");
+		out.assign(in.rbegin(), in.rend());
+	}
+	else
+		out.assign(in.begin(), in.end());
+}
+
+void fastfilter_i::validateFftSize(size_t numTaps)
+{
+	if (2*(numTaps-1)>fftSize)
+	{
+		LOG_WARN(fastfilter_i, "Increasing fftSize because you configured with manual taps > fftSize!");
+		while (2*(numTaps-1)>fftSize)
+			fftSize*=2;
+	}
+}
+
+template<typename T>
+void fastfilter_i::designTaps(T& taps, float sampleRate)
+{
+
 	//design the filter according to the filterProps specifications and set the output in the filterCoefficients property
 	FIRFilter::filter_type type;
 	if (filterProps.Type=="lowpass")
@@ -364,34 +511,14 @@ void fastfilter_i::filterPropsChanged(const std::string& id)
 		LOG_ERROR(fastfilter_i, "filter type "<<filterProps.Type<<" not suported");
 		return;
 	}
-	manualTaps_=false;
 	//we can only design the filter if we have a valid sampling rate
-	if (fs_>0)
-	{
-		//use the interal filter designer to calculate the taps
-		size_t fftSizeInt(static_cast<size_t>(fftSize));
-		size_t minTaps = std::max(fftSizeInt/16,size_t(10));
-		size_t maxTaps = filter_.getMaxTaps();
+	//use the interal filter designer to calculate the taps
+	size_t fftSizeInt(static_cast<size_t>(fftSize));
+	size_t minTaps = std::max(fftSizeInt/16,size_t(10));
+	size_t maxTaps = getMaxTapsSize(fftSizeInt);
 
-		if (filterComplex)
-		{
-			//calculate the complex taps and update the filterCoefficients with the demuxed real values
-			ComplexVector taps;
-			size_t len = filterdesigner_.wdfirHz(taps,type,filterProps.Ripple, filterProps.TransitionWidth, filterProps.freq1, filterProps.freq2, fs_,minTaps,maxTaps);
-			size_t realLen = len*2.0;
-                        filterCoefficients.resize(realLen);
-			for (size_t i =0; i!=taps.size(); i++)
-	    	{
-                        filterCoefficients[2*i] = taps[i].real();
-                        filterCoefficients[2*i+1] = taps[i].imag();
-	    	}
-		}
-		else
-		{
-			//calcualte the real taps
-			filterdesigner_.wdfirHz(filterCoefficients,type,filterProps.Ripple, filterProps.TransitionWidth, filterProps.freq1, filterProps.freq2, fs_,minTaps,maxTaps);
-		}
-		updateFilter_=true;
-	}
+	std::vector<typename T::value_type> tmp;
+	filterdesigner_.wdfirHz(tmp,type,filterProps.Ripple, filterProps.TransitionWidth, filterProps.freq1, filterProps.freq2, sampleRate,minTaps,maxTaps);
+	taps.assign(tmp.begin(), tmp.end());
 }
 

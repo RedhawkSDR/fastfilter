@@ -141,20 +141,25 @@ void fastfilter_base::loadProperties()
                 "external",
                 "configure");
 
-    addProperty(filterComplex,
+    addProperty(correlationMode,
                 false,
-                "filterComplex",
+                "correlationMode",
                 "",
                 "readwrite",
                 "",
                 "external",
                 "configure");
 
-    // Set the sequence with its initial values
-    filterCoefficients.push_back(1);
-    addProperty(filterCoefficients,
-                filterCoefficients,
-                "filterCoefficients",
+    addProperty(realFilterCoefficients,
+                "realFilterCoefficients",
+                "",
+                "readwrite",
+                "",
+                "external",
+                "configure");
+
+    addProperty(complexFilterCoefficients,
+                "complexFilterCoefficients",
                 "",
                 "readwrite",
                 "",

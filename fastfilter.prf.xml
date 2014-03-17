@@ -24,20 +24,16 @@ program.  If not, see http://www.gnu.org/licenses/.
     <kind kindtype="configure"/>
     <action type="external"/>
   </simple>
-  <simplesequence id="filterCoefficients" mode="readwrite" type="float">
-    <description>coefficients for filter taps containing the impulse response.  This can be configured with this property, or it can be set by configuring the filterProps struct property.</description>
-    <values>
-      <value>1</value>
-    </values>
+  <simplesequence id="realFilterCoefficients" mode="readwrite" type="float">
+    <description>real Coefficients for filter taps containing the impulse response.  </description>
     <kind kindtype="configure"/>
     <action type="external"/>
   </simplesequence>
-  <simple id="filterComplex" mode="readwrite" type="boolean">
-    <description>Is the sequence contained in the property &quot;filterCoefficients&quot; real or complex?</description>
-    <value>False</value>
+  <simplesequence id="complexFilterCoefficients" mode="readwrite" type="float" complex="true">
+    <description>coefficients for filter taps containing the impulse response .  This can be configured with this property, or it can be set by configuring the filterProps struct property.</description>
     <kind kindtype="configure"/>
     <action type="external"/>
-  </simple>
+  </simplesequence>
   <struct id="filterProps" mode="readwrite">
     <description>Configure this property to use the internal filter designer to create your filter coefficients.</description>
     <simple id="TransitionWidth" mode="readwrite" type="double">
@@ -77,5 +73,17 @@ program.  If not, see http://www.gnu.org/licenses/.
       <kind kindtype="configure"/>
       <action type="external"/>
     </simple>
+    <simple id="filterComplex" mode="readwrite" type="boolean">
+      <description>Does the filter being designed have real or complex taps?</description>
+      <value>False</value>
+      <kind kindtype="configure"/>
+      <action type="external"/>
+    </simple>
   </struct>
+  <simple id="correlationMode" mode="readwrite" type="boolean">
+    <description>If this property is set to true - fastfilter runs as a corelator instead of a filter.  This is achieved by filtering with the time reveresed sequence of the filter taps.</description>
+    <value>False</value>
+    <kind kindtype="configure"/>
+    <action type="external"/>
+  </simple>
 </properties>
