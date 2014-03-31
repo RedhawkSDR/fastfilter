@@ -45,6 +45,7 @@ program.  If not, see http://www.gnu.org/licenses/.
     </simple>
     <simple id="Type" mode="readwrite" type="string">
       <description>Type of filter to design</description>
+      <value>lowpass</value>
       <enumerations>
         <enumeration label="lowpass" value="lowpass"/>
         <enumeration label="highpass" value="highpass"/>

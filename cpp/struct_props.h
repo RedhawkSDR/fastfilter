@@ -31,6 +31,7 @@ struct filterProps_struct {
     filterProps_struct ()
     {
         TransitionWidth = 800;
+        Type = "lowpass";
         Ripple = 0.01;
         freq1 = 1000;
         freq2 = 2000;
