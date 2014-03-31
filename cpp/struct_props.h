@@ -29,6 +29,7 @@ struct filterProps_struct {
     filterProps_struct ()
     {
         TransitionWidth = 800;
+        Type = "lowpass";
         Ripple = 0.01;
         freq1 = 1000;
         freq2 = 2000;
@@ -67,7 +68,7 @@ inline bool operator>>= (const CORBA::Any& a, filterProps_struct& s) {
         else if (!strcmp("freq2", props[idx].id)) {
             if (!(props[idx].value >>= s.freq2)) return false;
         }
-        if (!strcmp("filterComplex", props[idx].id)) {
+        else if (!strcmp("filterComplex", props[idx].id)) {
             if (!(props[idx].value >>= s.filterComplex)) return false;
         }
     }
