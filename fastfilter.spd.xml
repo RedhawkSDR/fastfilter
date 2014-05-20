@@ -20,7 +20,7 @@ program.  If not, see http://www.gnu.org/licenses/.
 <softpkg id="DCE:42d3f184-ca0e-471c-bf66-0144443bb4c0" name="fastfilter" type="sca_compliant">
   <title></title>
   <author>
-    <name>null</name>
+    <name>REDHAWK</name>
   </author>
   <description>fastfilter is an FIR filter implementation using the FFT-based overlap-add technique.  
 
@@ -37,7 +37,7 @@ It is important to note that use cases 1 &amp; 2 use the same filter coeficients
     <localfile name="fastfilter.scd.xml"/>
   </descriptor>
   <implementation id="cpp">
-    <description>The implementation contains descriptive information about the template for a software component.</description>
+    <description>C++ implementation</description>
     <code type="Executable">
       <localfile name="cpp/fastfilter"/>
       <entrypoint>cpp/fastfilter</entrypoint>
@@ -48,14 +48,14 @@ It is important to note that use cases 1 &amp; 2 use the same filter coeficients
     <os name="Linux"/>
     <dependency type="runtime_requirements">
       <softpkgref>
-        <localfile name="/components/fftlib/fftlib.spd.xml"/>
-        <implref refid="firstImplementation"/>
+        <localfile name="/deps/fftlib/fftlib.spd.xml"/>
+        <implref refid="cpp"/>
       </softpkgref>
     </dependency>
     <dependency type="runtime_requirements">
       <softpkgref>
-        <localfile name="/components/dsp/dsp.spd.xml"/>
-        <implref refid="firstImplementation"/>
+        <localfile name="/deps/dsp/dsp.spd.xml"/>
+        <implref refid="cpp"/>
       </softpkgref>
     </dependency>
     <processor name="x86"/>
