@@ -26,3 +26,5 @@ redhawk_SOURCES_auto += fastfilter_base.cpp
 redhawk_SOURCES_auto += fastfilter_base.h
 redhawk_SOURCES_auto += main.cpp
 redhawk_SOURCES_auto += struct_props.h
+redhawk_INCLUDES_auto = -I/var/redhawk/sdr/dom/deps/dsp/include
+redhawk_INCLUDES_auto += -I/var/redhawk/sdr/dom/deps/fftlib/include
