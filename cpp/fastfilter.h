@@ -65,11 +65,11 @@ class fastfilter_i : public fastfilter_base
         firfilter::realVector realOut;
         firfilter::complexVector complexOut;
 
-        void fftSizeChanged(const std::string& id);
-        void realFilterCoefficientsChanged(const std::string& id);
-        void complexFilterCoefficientsChanged(const std::string& id);
-        void filterPropsChanged(const std::string& id);
-        void correlationModeChanged(const std::string& id);
+        void complexFilterCoefficientsChanged(const std::vector<std::complex<float> > *oldValue, const std::vector<std::complex<float> > *newValue);
+        void correlationModeChanged(const bool *oldValue, const bool *newValue);
+        void filterPropsChanged(const filterProps_struct *oldValue, const filterProps_struct *newValue);
+        void fftSizeChanged(const unsigned int *oldValue, const unsigned int *newValue);
+        void realFilterCoefficientsChanged(const std::vector<float> *oldValue, const std::vector<float> *newValue);
 
         void getManualTaps(bool& doReal, bool& doComplex);
         template<typename T, typename U>

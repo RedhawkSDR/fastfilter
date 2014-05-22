@@ -33,11 +33,11 @@ fastfilter_i::fastfilter_i(const char *uuid, const char *label) :
     fastfilter_base(uuid, label),
     manualTaps_(false)
 {
-	setPropertyChangeListener("fftSize", this, &fastfilter_i::fftSizeChanged);
-	setPropertyChangeListener("realFilterCoefficients", this, &fastfilter_i::realFilterCoefficientsChanged);
-	setPropertyChangeListener("complexFilterCoefficients", this, &fastfilter_i::complexFilterCoefficientsChanged);
-	setPropertyChangeListener("filterProps", this, &fastfilter_i::filterPropsChanged);
-	setPropertyChangeListener("correlationMode", this, &fastfilter_i::correlationModeChanged);
+	addPropertyChangeListener("complexFilterCoefficients", this, &fastfilter_i::complexFilterCoefficientsChanged);
+	addPropertyChangeListener("correlationMode", this, &fastfilter_i::correlationModeChanged);
+	addPropertyChangeListener("fftSize", this, &fastfilter_i::fftSizeChanged);
+	addPropertyChangeListener("filterProps", this, &fastfilter_i::filterPropsChanged);
+	addPropertyChangeListener("realFilterCoefficients", this, &fastfilter_i::realFilterCoefficientsChanged);
 }
 
 fastfilter_i::~fastfilter_i()
@@ -331,8 +331,8 @@ void fastfilter_i::configure (const CF::Properties& configProperties)
 		}
 		if (filtProps > 1)
 		{
-			LOG_ERROR(fastfilter_i,"cannot configure multiple combinations of real coeficients cx coeficients and filterProps simultaniously");
-			throw CF::PropertySet::InvalidConfiguration("cannot configure multiple combinations of real coeficients cx coeficients and filterProps simultaniously", configProperties);
+			LOG_ERROR(fastfilter_i,"cannot configure multiple combinations of real coefficients cx coefficients and filterProps simultaneously");
+			throw CF::PropertySet::InvalidConfiguration("cannot configure multiple combinations of real coefficients cx coefficients and filterProps simultaneously", configProperties);
 		}
 	}
 	fastfilter_base::configure(configProperties);
@@ -340,108 +340,150 @@ void fastfilter_i::configure (const CF::Properties& configProperties)
 
 //HERE ARE all the filter callbacks
 
-void fastfilter_i::fftSizeChanged(const std::string& id)
-{
-	boost::mutex::scoped_lock lock(filterLock_);
-	if (!filters_.empty())
-	{
-		size_t maxNumTaps=0;
-		for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
-		{
-			if (i->second.filter->getNumTaps()> maxNumTaps)
-				maxNumTaps=i->second.filter->getNumTaps();
-		}
-		validateFftSize(maxNumTaps);
-		for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
-			i->second.filter->setFftSize(fftSize);
-	}
-}
-
-void fastfilter_i::realFilterCoefficientsChanged(const std::string& id)
+void fastfilter_i::complexFilterCoefficientsChanged(const std::vector<std::complex<float> > *oldValue, const std::vector<std::complex<float> > *newValue)
 {
 	//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
-	boost::mutex::scoped_lock lock(filterLock_);
-	if (!realFilterCoefficients.empty())
-	{
-		manualTaps_=true;
-		complexFilterCoefficients.clear();
-		if (!filters_.empty())
+	if (*oldValue != *newValue) {
+		boost::mutex::scoped_lock lock(filterLock_);
+		complexFilterCoefficients = *newValue;
+		if (!complexFilterCoefficients.empty())
 		{
-			getManualTapsTemplate(realFilterCoefficients, realTaps_);
-			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+			manualTaps_=true;
+			realFilterCoefficients.clear();
+			if ( !filters_.empty())
 			{
-				i->second.filter->setTaps(realTaps_);
+				getManualTapsTemplate(complexFilterCoefficients, complexTaps_);
+				for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+					i->second.filter->setTaps(complexTaps_);
 			}
 		}
 	}
-	else
-	{
-		LOG_WARN(fastfilter_i, "Ignoring empty configure for realFilterCoefficients -- to clear this setting configure complexFilterCoefficients or filterProps")
-	}
 }
-void fastfilter_i::complexFilterCoefficientsChanged(const std::string& id)
+
+void fastfilter_i::correlationModeChanged(const bool *oldValue, const bool *newValue)
 {
-	//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
-	boost::mutex::scoped_lock lock(filterLock_);
-	if (!complexFilterCoefficients.empty())
-	{
-		manualTaps_=true;
-		realFilterCoefficients.clear();
-		if ( !filters_.empty())
+	if (*oldValue != *newValue) {
+		//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
+		boost::mutex::scoped_lock lock(filterLock_);
+		correlationMode = *newValue;
+		if (correlationMode)
+			manualTaps_=true;
+		bool real, complex;
+		if (! filters_.empty())
 		{
-			getManualTapsTemplate(complexFilterCoefficients, complexTaps_);
-			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
-				i->second.filter->setTaps(complexTaps_);
+			getManualTaps(real,complex);
+			if (real)
+			{
+				for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+					i->second.filter->setTaps(realTaps_);
+			} else if (complex)
+			{
+				for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+					i->second.filter->setTaps(complexTaps_);
+			}
 		}
 	}
 }
 
-void fastfilter_i::filterPropsChanged(const std::string& id)
+void fastfilter_i::fftSizeChanged(const unsigned int *oldValue, const unsigned int *newValue)
 {
-	boost::mutex::scoped_lock lock(filterLock_);
-	realFilterCoefficients.clear();
-	complexFilterCoefficients.clear();
-	correlationMode=false;
-	manualTaps_=false;
-	if (!filters_.empty())
-	{
-		if (filterProps.filterComplex)
+	if (*oldValue != *newValue) {
+		boost::mutex::scoped_lock lock(filterLock_);
+		fftSize = *newValue;
+		if (!filters_.empty())
 		{
+			size_t maxNumTaps=0;
 			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
 			{
-				designTaps(complexTaps_, i->second.getSampleRate());
-				i->second.filter->setTaps(complexTaps_);
+				if (i->second.filter->getNumTaps()> maxNumTaps)
+					maxNumTaps=i->second.filter->getNumTaps();
+			}
+			validateFftSize(maxNumTaps);
+			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+				i->second.filter->setFftSize(fftSize);
+		}
+	}
+}
+
+void fastfilter_i::filterPropsChanged(const filterProps_struct *oldValue, const filterProps_struct *newValue)
+{
+	bool changed = false;
+	boost::mutex::scoped_lock lock(filterLock_);
+
+	if (oldValue->Ripple != newValue->Ripple) {
+		filterProps.Ripple = newValue->Ripple;
+		changed = true;
+	}
+	if (oldValue->TransitionWidth != newValue->TransitionWidth) {
+		filterProps.TransitionWidth = newValue->TransitionWidth;
+		changed = true;
+	}
+	if (oldValue->Type != newValue->Type) {
+		filterProps.Type = newValue->Type;
+		changed = true;
+	}
+	if (oldValue->filterComplex != newValue->filterComplex) {
+		filterProps.filterComplex = newValue->filterComplex;
+		changed = true;
+	}
+	if (oldValue->freq1 != newValue->freq1) {
+		filterProps.freq1 = newValue->freq1;
+		changed = true;
+	}
+	if (oldValue->freq2 != newValue->freq2) {
+		filterProps.freq2 = newValue->freq2;
+		changed = true;
+	}
+
+	if (changed) {
+		realFilterCoefficients.clear();
+		complexFilterCoefficients.clear();
+		correlationMode=false;
+		manualTaps_=false;
+		if (!filters_.empty())
+		{
+			if (filterProps.filterComplex)
+			{
+				for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+				{
+					designTaps(complexTaps_, i->second.getSampleRate());
+					i->second.filter->setTaps(complexTaps_);
+				}
+			}
+			else
+			{
+				for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+				{
+					designTaps(realTaps_, i->second.getSampleRate());
+					i->second.filter->setTaps(realTaps_);
+				}
+			}
+		}
+	}
+}
+
+void fastfilter_i::realFilterCoefficientsChanged(const std::vector<float> *oldValue, const std::vector<float> *newValue)
+{
+	//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
+	if (*oldValue != *newValue) {
+		boost::mutex::scoped_lock lock(filterLock_);
+		realFilterCoefficients = *newValue;
+		if (!realFilterCoefficients.empty())
+		{
+			manualTaps_=true;
+			complexFilterCoefficients.clear();
+			if (!filters_.empty())
+			{
+				getManualTapsTemplate(realFilterCoefficients, realTaps_);
+				for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
+				{
+					i->second.filter->setTaps(realTaps_);
+				}
 			}
 		}
 		else
 		{
-			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
-			{
-				designTaps(realTaps_, i->second.getSampleRate());
-				i->second.filter->setTaps(realTaps_);
-			}
-		}
-	}
-}
-
-void fastfilter_i::correlationModeChanged(const std::string& id)
-{
-	//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
-	boost::mutex::scoped_lock lock(filterLock_);
-	if (correlationMode)
-		manualTaps_=true;
-	bool real, complex;
-	if (! filters_.empty())
-	{
-		getManualTaps(real,complex);
-		if (real)
-		{
-			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
-				i->second.filter->setTaps(realTaps_);
-		} else if (complex)
-		{
-			for (map_type::iterator i = filters_.begin(); i!=filters_.end(); i++)
-				i->second.filter->setTaps(complexTaps_);
+			LOG_WARN(fastfilter_i, "Ignoring empty configure for realFilterCoefficients -- to clear this setting configure complexFilterCoefficients or filterProps")
 		}
 	}
 }
