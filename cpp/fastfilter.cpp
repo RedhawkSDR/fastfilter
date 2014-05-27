@@ -345,7 +345,6 @@ void fastfilter_i::complexFilterCoefficientsChanged(const std::vector<std::compl
 	//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
 	if (*oldValue != *newValue) {
 		boost::mutex::scoped_lock lock(filterLock_);
-		complexFilterCoefficients = *newValue;
 		if (!complexFilterCoefficients.empty())
 		{
 			manualTaps_=true;
@@ -365,7 +364,6 @@ void fastfilter_i::correlationModeChanged(const bool *oldValue, const bool *newV
 	if (*oldValue != *newValue) {
 		//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
 		boost::mutex::scoped_lock lock(filterLock_);
-		correlationMode = *newValue;
 		if (correlationMode)
 			manualTaps_=true;
 		bool real, complex;
@@ -389,7 +387,6 @@ void fastfilter_i::fftSizeChanged(const unsigned int *oldValue, const unsigned i
 {
 	if (*oldValue != *newValue) {
 		boost::mutex::scoped_lock lock(filterLock_);
-		fftSize = *newValue;
 		if (!filters_.empty())
 		{
 			size_t maxNumTaps=0;
@@ -411,27 +408,21 @@ void fastfilter_i::filterPropsChanged(const filterProps_struct *oldValue, const 
 	boost::mutex::scoped_lock lock(filterLock_);
 
 	if (oldValue->Ripple != newValue->Ripple) {
-		filterProps.Ripple = newValue->Ripple;
 		changed = true;
 	}
 	if (oldValue->TransitionWidth != newValue->TransitionWidth) {
-		filterProps.TransitionWidth = newValue->TransitionWidth;
 		changed = true;
 	}
 	if (oldValue->Type != newValue->Type) {
-		filterProps.Type = newValue->Type;
 		changed = true;
 	}
 	if (oldValue->filterComplex != newValue->filterComplex) {
-		filterProps.filterComplex = newValue->filterComplex;
 		changed = true;
 	}
 	if (oldValue->freq1 != newValue->freq1) {
-		filterProps.freq1 = newValue->freq1;
 		changed = true;
 	}
 	if (oldValue->freq2 != newValue->freq2) {
-		filterProps.freq2 = newValue->freq2;
 		changed = true;
 	}
 
@@ -467,7 +458,6 @@ void fastfilter_i::realFilterCoefficientsChanged(const std::vector<float> *oldVa
 	//user manually configured the taps with an externally designed filter - set the boolean and update the filter flags
 	if (*oldValue != *newValue) {
 		boost::mutex::scoped_lock lock(filterLock_);
-		realFilterCoefficients = *newValue;
 		if (!realFilterCoefficients.empty())
 		{
 			manualTaps_=true;
