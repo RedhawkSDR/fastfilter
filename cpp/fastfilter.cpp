@@ -404,29 +404,8 @@ void fastfilter_i::fftSizeChanged(const unsigned int *oldValue, const unsigned i
 
 void fastfilter_i::filterPropsChanged(const filterProps_struct *oldValue, const filterProps_struct *newValue)
 {
-	bool changed = false;
-	boost::mutex::scoped_lock lock(filterLock_);
-
-	if (oldValue->Ripple != newValue->Ripple) {
-		changed = true;
-	}
-	if (oldValue->TransitionWidth != newValue->TransitionWidth) {
-		changed = true;
-	}
-	if (oldValue->Type != newValue->Type) {
-		changed = true;
-	}
-	if (oldValue->filterComplex != newValue->filterComplex) {
-		changed = true;
-	}
-	if (oldValue->freq1 != newValue->freq1) {
-		changed = true;
-	}
-	if (oldValue->freq2 != newValue->freq2) {
-		changed = true;
-	}
-
-	if (changed) {
+	if (oldValue != newValue) {
+		boost::mutex::scoped_lock lock(filterLock_);
 		realFilterCoefficients.clear();
 		complexFilterCoefficients.clear();
 		correlationMode=false;
