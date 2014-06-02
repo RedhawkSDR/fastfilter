@@ -188,6 +188,7 @@ class ImpulseResponseMixIn(object):
         #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
         inData=[[x+y for x,y in zip(dataA,dataB)]]
         self.main(inData, eos=True)
+        self.validateSRIPushing()
         self.output = []
         
         fs = 10000
@@ -217,6 +218,7 @@ class ImpulseResponseMixIn(object):
         #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
         inData=[[x+y for x,y in zip(dataA,dataB)]]
         self.main(inData, streamID ='streamA')
+        self.validateSRIPushing(streamID='streamA')
         self.output = []
         
         fs = 10000
@@ -235,6 +237,7 @@ class ImpulseResponseMixIn(object):
         
         #send data into fhe filter
         self.main(inData=[data],dataCx=False,sampleRate =sampleRate)
+        self.validateSRIPushing(sampleRate=sampleRate)
 
         if DISPLAY:
             self.plotFft(self.output, 16*1024, sampleRate)
@@ -533,6 +536,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
         #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
         inData=[[x+y for x,y in zip(dataA,dataB)]]
         self.main(inData)
+        self.validateSRIPushing()
         
         outDataSS = self.output[(len(filter)-1)/2:]
         
@@ -551,6 +555,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
         inData=[x+y for x,y in zip(dataA,dataB)]
         cxInData = [muxZeros(inData)]
         self.main(cxInData,dataCx=True)
+        self.validateSRIPushing()
         
         re,im = demux(self.output)
         reSS = self.output = re[(len(filter)-1)/2:]
@@ -568,6 +573,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
         inData=[x+y for x,y in zip(dataA,dataB)]
         cxInData = [muxZeros(inData)]
         self.main(cxInData,dataCx=True)
+        self.validateSRIPushing()
         
         re,im = demux(self.output)
         reSS = self.output = re[(len(filter)-1)/2:]
@@ -586,6 +592,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
         #inData = [data[500*i:500*(i+1)] for i in xrange((len(data)+499)/500)]
         inData=[[x+y for x,y in zip(dataA,dataB)]]
         self.main(inData)
+        self.validateSRIPushing()
         
         re,im = demux(self.output)
         reSS = self.output = re[(len(filter)-1)/2:]
@@ -618,7 +625,10 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
         data = [random.random() for _ in range(int(self.comp.fftSize)/2)]
         outExpected = scipyCorl(filter,data)
         data.extend([0]*(self.comp.fftSize))
-        self.main([data],False,1e6)
+
+        sampleRate = 1e6
+        self.main([data],False,sampleRate)
+        self.validateSRIPushing(sampleRate=sampleRate)
         self.cmpList(outExpected,self.output[:len(outExpected)])
 
 
@@ -634,6 +644,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
         outExpected =  scipyCorl(filter,dataCx)
         data.extend([0]*(int(2*self.comp.fftSize)))
         self.main([data],True,1e6)
+        self.validateSRIPushing(sampleRate=1e6)
         self.cmpList(outExpected,self.output[:len(outExpected)])         
 
     def testCxRealCorrelation(self):
@@ -648,6 +659,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
         outExpected =  scipyCorl(filter,dataCx)
         data.extend([0]*(self.comp.fftSize))
         self.main([data],True,1e6)
+        self.validateSRIPushing(sampleRate=1e6)
         self.cmpList(outExpected,self.output[:len(outExpected)])
 
 
@@ -663,6 +675,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
         outExpected = scipyCorl(filter,data)
         data.extend([0]*(self.comp.fftSize))
         self.main([data],False,1e6)
+        self.validateSRIPushing(sampleRate=1e6)
         self.cmpList(outExpected,self.output[:len(outExpected)])
     
     def makeCxCoefProps(self):
@@ -670,7 +683,14 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
 
     def makeRealCoefProps(self):
         return ossie.cf.CF.DataType(id='realFilterCoefficients', value=CORBA.Any(CORBA.TypeCode("IDL:omg.org/CORBA/FloatSeq:1.0"), []))
-    
+   
+    def validateSRIPushing(self, sampleRate=1.0, streamID='test_stream'):
+        self.assertEqual(self.sink.sri().streamID, streamID, "Component not pushing streamID properly")
+        # Account for rounding error
+        calcSR = 1/self.sink.sri().xdelta
+        diffSR = abs(calcSR-sampleRate)
+        tolerance = 1
+        self.assertTrue(diffSR < tolerance, "Component not pushing samplerate properly")
 
     def main(self, inData, dataCx=False, sampleRate=1.0, eos=False,streamID='test_stream'):    
         count=0
