@@ -29,10 +29,10 @@ struct filterProps_struct {
     filterProps_struct ()
     {
         TransitionWidth = 800;
-        Type = "lowpass";
+        Type = "highpass";
         Ripple = 0.01;
-        freq1 = 1000;
-        freq2 = 2000;
+        freq1 = 0;
+        freq2 = 0;
         filterComplex = false;
     };
 
@@ -113,5 +113,4 @@ inline bool operator!= (const filterProps_struct& s1, const filterProps_struct& 
     return !(s1==s2);
 };
 
-
-#endif
+#endif // STRUCTPROPS_H

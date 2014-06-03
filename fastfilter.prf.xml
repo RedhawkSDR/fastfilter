@@ -45,7 +45,7 @@ program.  If not, see http://www.gnu.org/licenses/.
     </simple>
     <simple id="Type" mode="readwrite" type="string">
       <description>Type of filter to design</description>
-      <value>lowpass</value>
+      <value>highpass</value>
       <enumerations>
         <enumeration label="lowpass" value="lowpass"/>
         <enumeration label="highpass" value="highpass"/>
@@ -64,13 +64,13 @@ program.  If not, see http://www.gnu.org/licenses/.
     </simple>
     <simple id="freq1" mode="readwrite" type="double">
       <description>First transition frequency - used for all frequncy types.</description>
-      <value>1000</value>
+      <value>0</value>
       <kind kindtype="configure"/>
       <action type="external"/>
     </simple>
     <simple id="freq2" mode="readwrite" type="double">
       <description>Second transition Frquency -- used only for bandpass/bandstop filters</description>
-      <value>2000</value>
+      <value>0</value>
       <kind kindtype="configure"/>
       <action type="external"/>
     </simple>

@@ -524,6 +524,28 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
         except CF.PropertySet.InvalidConfiguration:
             return
         raise RunTimeError("No error raised in testBadCfg1")
+
+    def testDefaultConfiguration(self):
+        """ Test that default configuration is a working allpass filter
+        """
+        dataPoints = 1024
+        data = range(dataPoints)
+        
+        self.src.push(data,complexData=False, sampleRate=1.0, EOS=False,streamID="someSRI")
+        count = 0
+        while True:
+            newData = self.sink.getData()
+            if newData:
+                count = 0
+                self.output.extend(newData)
+            elif count==200:
+                break
+            time.sleep(.01)
+            count+=1
+     
+        # Very vague but there's padding in the beginning
+        # Just want to verify it doesn't fail miserably
+        self.assertTrue(len(self.output) > dataPoints/2)
   
     def testReal(self):
         """ Real Filter real data
@@ -662,8 +684,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
         self.validateSRIPushing(sampleRate=1e6)
         self.cmpList(outExpected,self.output[:len(outExpected)])
 
-
-    def testRealCxCorrelation(self):
+    def testRealCxCorrelationWithReconnecting(self):
         """complex filter real data
         """
         filter = [complex(random.random(),random.random()) for _ in xrange(513)]
@@ -674,6 +695,8 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
         data = [random.random() for _ in range(int(self.comp.fftSize)/2)]
         outExpected = scipyCorl(filter,data)
         data.extend([0]*(self.comp.fftSize))
+        self.comp.disconnect(self.sink)
+        self.comp.connect(self.sink)
         self.main([data],False,1e6)
         self.validateSRIPushing(sampleRate=1e6)
         self.cmpList(outExpected,self.output[:len(outExpected)])
