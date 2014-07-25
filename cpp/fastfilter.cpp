@@ -359,7 +359,7 @@ void fastfilter_i::complexFilterCoefficientsChanged(const std::vector<std::compl
           }
         } catch (...) {
            LOG_ERROR(fastfilter_i, "Unable to update complexFilterCoefficients!");
-           *oldValue = *newValue;
+           complexFilterCoefficients=*oldValue;
         }
 	}
 }
@@ -457,7 +457,7 @@ void fastfilter_i::realFilterCoefficientsChanged(const std::vector<float> *oldVa
 		}
 		else
 		{
-            newValue = oldValue;
+            realFilterCoefficients=*oldValue;
 			LOG_WARN(fastfilter_i, "Ignoring empty configure for realFilterCoefficients -- to clear this setting configure complexFilterCoefficients or filterProps")
 		}
 	}
