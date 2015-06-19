@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!DOCTYPE softpkg PUBLIC "-//JTRS//DTD SCA V2.2.2 SPD//EN" "softpkg.dtd">
 <!--
 This file is protected by Copyright. Please refer to the COPYRIGHT file distributed with this 
@@ -16,7 +17,7 @@ PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with this 
 program.  If not, see http://www.gnu.org/licenses/.
 -->
-<softpkg version="1.0.1" id="DCE:42d3f184-ca0e-471c-bf66-0144443bb4c0" name="fastfilter" type="sca_compliant">
+<softpkg version="1.0.1" id="DCE:c6ee0524-16d3-11e5-9155-3417ebc4aab5" name="rh.fastfilter" type="sca_compliant">
   <title/>
   <author>
     <name>REDHAWK</name>

@@ -15,11 +15,11 @@
 # You should have received a copy of the GNU General Public License along with this 
 # program.  If not, see http://www.gnu.org/licenses/.
 
-ossieName = fastfilter
-bindir = $(prefix)/dom/components/fastfilter/cpp/
+ossieName = rh.fastfilter
+bindir = $(prefix)/dom/components/rh/fastfilter/cpp/
 bin_PROGRAMS = fastfilter
 
-xmldir = $(prefix)/dom/components/fastfilter/
+xmldir = $(prefix)/dom/components/rh/fastfilter/
 dist_xml_DATA = ../fastfilter.scd.xml ../fastfilter.prf.xml ../fastfilter.spd.xml
 
 distclean-local:

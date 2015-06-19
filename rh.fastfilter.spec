@@ -28,7 +28,7 @@ Prefix:         %{_prefix}
 %define _mandir        %{_prefix}/man
 %define _infodir       %{_prefix}/info
 
-Name:           fastfilter
+Name:           rh.fastfilter
 Version:        1.0.1
 Release:        1%{?dist}
 Summary:        Component %{name}
@@ -65,7 +65,7 @@ Component %{name}
 # Implementation cpp
 pushd cpp
 ./reconf
-%define _bindir %{_prefix}/dom/components/fastfilter/cpp
+%define _bindir %{_prefix}/dom/components/rh/fastfilter/cpp
 %configure
 make %{?_smp_mflags}
 popd
@@ -75,7 +75,7 @@ popd
 rm -rf $RPM_BUILD_ROOT
 # Implementation cpp
 pushd cpp
-%define _bindir %{_prefix}/dom/components/fastfilter/cpp
+%define _bindir %{_prefix}/dom/components/rh/fastfilter/cpp
 make install DESTDIR=$RPM_BUILD_ROOT
 popd
 
@@ -86,9 +86,9 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,redhawk,redhawk,-)
-%dir %{_prefix}/dom/components/%{name}
-%{_prefix}/dom/components/%{name}/fastfilter.scd.xml
-%{_prefix}/dom/components/%{name}/fastfilter.prf.xml
-%{_prefix}/dom/components/%{name}/fastfilter.spd.xml
-%{_prefix}/dom/components/%{name}/cpp
+%dir %{_prefix}/dom/components/rh/fastfilter
+%{_prefix}/dom/components/rh/fastfilter/fastfilter.scd.xml
+%{_prefix}/dom/components/rh/fastfilter/fastfilter.prf.xml
+%{_prefix}/dom/components/rh/fastfilter/fastfilter.spd.xml
+%{_prefix}/dom/components/rh/fastfilter/cpp
 

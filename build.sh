@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # This file is protected by Copyright. Please refer to the COPYRIGHT file distributed with this 
 # source distribution.
@@ -20,12 +20,12 @@
 
 if [ "$1" = "rpm" ]; then
     # A very simplistic RPM build scenario
-    if [ -e fastfilter.spec ]; then
+    if [ -e rh.fastfilter.spec ]; then
         mydir=`dirname $0`
         tmpdir=`mktemp -d`
-        cp -r ${mydir} ${tmpdir}/fastfilter-1.0.1
-        tar czf ${tmpdir}/fastfilter-1.0.1.tar.gz --exclude=".svn" -C ${tmpdir} fastfilter-1.0.1
-        rpmbuild -ta ${tmpdir}/fastfilter-1.0.1.tar.gz
+        cp -r ${mydir} ${tmpdir}/rh.fastfilter-1.0.1
+        tar czf ${tmpdir}/rh.fastfilter-1.0.1.tar.gz --exclude=".svn" -C ${tmpdir} rh.fastfilter-1.0.1
+        rpmbuild -ta ${tmpdir}/rh.fastfilter-1.0.1.tar.gz
         rm -rf $tmpdir
     else
         echo "Missing RPM spec file in" `pwd`
@@ -35,7 +35,19 @@ else
     for impl in cpp ; do
         cd $impl
         if [ -e build.sh ]; then
-            ./build.sh $*
+            if [ $# == 1 ]; then
+                if [ $1 == 'clean' ]; then
+                    rm -f Makefile
+                    rm -f config.*
+                    ./build.sh distclean
+                else
+                    ./build.sh $*
+                fi
+            else
+                ./build.sh $*
+            fi
+        elif [ -e Makefile ] && [ Makefile.am -ot Makefile ]; then
+            make $*
         elif [ -e reconf ]; then
             ./reconf && ./configure && make $*
         else
