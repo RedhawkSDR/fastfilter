@@ -16,7 +16,7 @@
 # program.  If not, see http://www.gnu.org/licenses/.
 #
 
-AC_INIT(rh.fastfilter, 1.0.1)
+AC_INIT(rh.fastfilter, 2.0.0)
 AM_INIT_AUTOMAKE(nostdinc)
 
 AC_PROG_CC
@@ -30,11 +30,10 @@ OSSIE_SDRROOT_AS_PREFIX
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 # Dependencies
-AC_SUBST([dsp_pkgconfig_dir],       [${prefix}/dom/deps/dsp/cpp/lib/pkgconfig])
-AC_SUBST([fftlib_pkgconfig_dir],    [${prefix}/dom/deps/fftlib/cpp/lib/pkgconfig])
-export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:${dsp_pkgconfig_dir}:${fftlib_pkgconfig_dir}"
-PKG_CHECK_MODULES([PROJECTDEPS],    [ossie >= 1.10 omniORB4 >= 4.1.0 dsp >= 1.0.0 fftlib >= 1.0.0 ])
-PKG_CHECK_MODULES([INTERFACEDEPS],  [bulkio >= 1.0 bulkioInterfaces >= 1.10])
+PKG_CHECK_MODULES([PROJECTDEPS], [ossie >= 2.0 omniORB4 >= 4.1.0])
+PKG_CHECK_MODULES([INTERFACEDEPS], [bulkio >= 2.0])
+RH_SOFTPKG_CXX([/deps/rh/dsp/dsp.spd.xml],[cpp],[2.0])
+RH_SOFTPKG_CXX([/deps/rh/fftlib/fftlib.spd.xml],[cpp],[2.0])
 OSSIE_ENABLE_LOG4CXX
 AX_BOOST_BASE([1.41])
 AX_BOOST_SYSTEM
