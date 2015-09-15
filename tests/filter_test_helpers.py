@@ -24,6 +24,16 @@ from ossie.properties import props_to_dict
 import math
 import scipy.signal
 import scipy.fftpack
+import numpy
+
+#Scipy changed the api for correlate in version 0.8
+from distutils.version import LooseVersion
+SCIPY_GREATER_18 = LooseVersion(scipy.__version__) >= LooseVersion('0.8')
+_orig_correlate = scipy.signal.correlate
+def correlatewrap(data,filter,command, *kwargs):
+    return _orig_correlate(data,numpy.conj(filter),command, *kwargs)
+if SCIPY_GREATER_18:
+    scipy.signal.correlate = correlatewrap
 
 DISPLAY = False
 if DISPLAY:
