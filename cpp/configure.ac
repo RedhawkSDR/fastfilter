@@ -17,7 +17,8 @@
 #
 
 AC_INIT(rh.fastfilter, 2.0.0)
-AM_INIT_AUTOMAKE(nostdinc)
+AM_INIT_AUTOMAKE([nostdinc foreign])
+AC_CONFIG_MACRO_DIR([m4])
 
 AC_PROG_CC
 AC_PROG_CXX
