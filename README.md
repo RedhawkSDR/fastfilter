@@ -1,8 +1,8 @@
-# REDHAWK Basic Components fastfilter
+# REDHAWK Basic Components rh.fastfilter
  
 ## Description
 
-Contains the source and build script for the REDHAWK Basic Components fastfilter. Fastfilter is an FIR filter implementation using the FFT-based overlap-add technique. 
+Contains the source and build script for the REDHAWK Basic Components rh.fastfilter. This component is a FIR filter implementation using the FFT-based overlap-add technique. 
  
 ## Installation Instructions
 This asset requires the rh.dsp and rh.fftlib shared libraries. These must be installed in order to build and run this asset.
@@ -14,4 +14,4 @@ This work is protected by Copyright. Please refer to the [Copyright File](COPYRI
 
 ## License
 
-REDHAWK Basic Components fastfilter is licensed under the GNU General Public License (GPL).
+REDHAWK Basic Components rh.fastfilter is licensed under the GNU General Public License (GPL).
