@@ -85,7 +85,7 @@ class fastfilter_i : public fastfilter_base
         void complexFilterCoefficientsChanged(const std::vector<std::complex<float> > *oldValue, const std::vector<std::complex<float> > *newValue);
         void correlationModeChanged(const bool *oldValue, const bool *newValue);
         void filterPropsChanged(const filterProps_struct *oldValue, const filterProps_struct *newValue);
-        void fftSizeChanged(const unsigned int *oldValue, const unsigned int *newValue);
+        void fftSizeChanged(const CORBA::ULong *oldValue, const CORBA::ULong *newValue);
         void realFilterCoefficientsChanged(const std::vector<float> *oldValue, const std::vector<float> *newValue);
 
         void getManualTaps(bool& doReal, bool& doComplex);

@@ -388,7 +388,7 @@ void fastfilter_i::correlationModeChanged(const bool *oldValue, const bool *newV
 	}
 }
 
-void fastfilter_i::fftSizeChanged(const unsigned int *oldValue, const unsigned int *newValue)
+void fastfilter_i::fftSizeChanged(const CORBA::ULong *oldValue, const CORBA::ULong *newValue)
 {
 	if (*oldValue != *newValue) {
 		boost::mutex::scoped_lock lock(filterLock_);
