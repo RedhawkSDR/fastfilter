@@ -29,7 +29,7 @@ Prefix:         %{_prefix}
 %define _infodir       %{_prefix}/info
 
 Name:           rh.fastfilter
-Version:        2.0.0
+Version:        2.0.1
 Release:        1%{?dist}
 Summary:        Component %{name}
 
