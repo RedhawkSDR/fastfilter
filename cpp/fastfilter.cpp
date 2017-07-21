@@ -309,6 +309,14 @@ int fastfilter_i::serviceFunction()
     	}
     	dataFloat_out->pushPacket(realOut, tmp->T, tmp->EOS, tmp->streamID);
     }
+
+    // If no Data but EOS is True then push and empty packet with EOS True
+    if (complexOut.empty() && realOut.empty() &&tmp->EOS){
+		std::vector<float> emptyOutput;
+		LOG_DEBUG(fastfilter_i, "Pushing Empty Data with EOS True");
+		dataFloat_out->pushPacket(emptyOutput, tmp->T, tmp->EOS, tmp->streamID);
+    }
+
     delete tmp; // IMPORTANT: MUST RELEASE THE RECEIVED DATA BLOCK
     return NORMAL;
 }

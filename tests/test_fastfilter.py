@@ -160,6 +160,29 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase, ImpulseResponseMi
         # Very vague but there's padding in the beginning
         # Just want to verify it doesn't fail miserably
         self.assertTrue(len(self.output) > dataPoints/2)
+ 
+    def testEOS(self):
+        """ Test EOS
+        """
+        dataPoints = 1024
+        data = range(dataPoints)
+        
+        self.src.push(data,complexData=False, sampleRate=1.0, EOS=False,streamID="someSRI")
+        count = 0
+        while True:
+            newData = self.sink.getData()
+            if newData:
+                count = 0
+                self.output.extend(newData)
+            elif count==200:
+                break
+            time.sleep(.01)
+            count+=1
+
+        self.assertFalse(self.sink.eos())
+        self.src.push([],complexData=False, sampleRate=1.0, EOS=True,streamID="someSRI")
+        time.sleep(.1)
+        self.assertTrue(self.sink.eos())
   
     def testReal(self):
         """ Real Filter real data
