@@ -1,7 +1,6 @@
 variables:
-  #Next versions of REDHAWK core-framework to be released
-  rh_20_release: '2.0.7'
-  rh_21_release: '2.1.2'
+  rh_20_release: '2.0.6'
+  rh_21_release: '2.1.1'
   dsp_version: '2.0.0'
   fftlib_version: '2.0.0'
   namespace: rh.
@@ -198,21 +197,3 @@ deploy:
     - if [ -n "$jenkins_url" ]; then
         curl --insecure -X POST $jenkins_url/job/$CI_PROJECT_NAMESPACE/job/$CI_PROJECT_NAME-$CI_COMMIT_REF_NAME/buildWithParameters?pipeline_id=$CI_PIPELINE_ID --user $jenkins_user:$jenkins_api_token;
       fi
-  only:
-    - branches
-
-deploy:release:
-  image: centos:7
-  stage: deploy
-  dependencies: []
-  #Note, must set set associated redhawk_release
-  before_script:
-    - echo "Deploying to $jenkins_url/job/$rh_20_release/job/$CI_PROJECT_NAMESPACE/job/$CI_PROJECT_NAME-$CI_COMMIT_REF_NAME"
-    - echo "Deploying to $jenkins_url/job/$rh_21_release/job/$CI_PROJECT_NAMESPACE/job/$CI_PROJECT_NAME-$CI_COMMIT_REF_NAME"
-  script:
-    - if [ -n "$jenkins_url" ]; then
-        curl --insecure -X POST $jenkins_url/job/$rh_20_release/job/$CI_PROJECT_NAME-$CI_COMMIT_REF_NAME/buildWithParameters?pipeline_id=$CI_PIPELINE_ID --user $jenkins_user:$jenkins_api_token;
-        curl --insecure -X POST $jenkins_url/job/$rh_21_release/job/$CI_PROJECT_NAME-$CI_COMMIT_REF_NAME/buildWithParameters?pipeline_id=$CI_PIPELINE_ID --user $jenkins_user:$jenkins_api_token;
-      fi
-  only:
-    - tags
