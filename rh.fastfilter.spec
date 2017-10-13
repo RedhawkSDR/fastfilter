@@ -30,7 +30,7 @@ Prefix:         %{_prefix}
 
 Name:           rh.fastfilter
 Version:        2.0.2
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Component %{name}
 
 Group:          REDHAWK/Components
